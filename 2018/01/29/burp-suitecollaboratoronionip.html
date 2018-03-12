@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>使用Burp Suite的Collaborator查找.Onion隱藏服務的真實IP地址</title>
+  <meta name="description" content="發佈於2017年11月23日">
+
+  <link rel="canonical" href="https://security-onigiri.github.io//2018/01/29/burp-suitecollaboratoronionip.html">
+  <link rel="alternate" type="application/rss+xml" title="" href="/feed.xml">
+
+  
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-115432550-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+  
+
+  
+  <link rel="stylesheet" type="text/css" href="/assets/security-onigiri-e45f1e8a374cbd7bc08e0d6d379f1d6513782a752a95247a059be105fdf4d810.css">
+  <script type="text/javascript" src="/assets/security-onigiri-e0d01fc4e3608020eb67fbf8c150af399b5e674f1492ca1bbb751596a52a359d.js"></script>
+</head>
+
+  <body>
+    <header>
+  <nav class="navbar is-dark">
+		<div class="navbar-brand">
+			<a class="navbar-item" href="/">
+        <img src="/assets/icon_avatar-63fb8ef941697015c2720bd8d2764b00ecd3d2d75db4a8da9244966f417daf8e.png">
+			</a>
+      <div class="navbar-burger" data-target="navMenu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+		</div>
+		<div class="navbar-menu" id="navMenu">
+			<div class="navbar-start">
+        
+        
+        <a class="navbar-item" href="/about/">
+          <span class="icon">
+            <i class="fas fa-user"></i>
+          </span>
+          About
+        </a>
+        
+        
+        
+        <a class="navbar-item" href="/tags/">
+          <span class="icon">
+            <i class="fas fa-tags"></i>
+          </span>
+          Tags
+        </a>
+        
+        
+        
+        <a class="navbar-item" href="/index.html">
+          <span class="icon">
+            <i class="fas fa-magic"></i>
+          </span>
+          Posts
+        </a>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+			</div>
+			<div class="navbar-end">
+				<a class="navbar-item" href="/feed.xml">
+          <span class="icon">
+            <i class="fas fa-rss"></i>
+          </span>
+					Subscribe
+				</a>
+			</div>
+		</div>
+	</nav>
+</header>
+
+    <main class="section">
+    <div class="container">
+  <div class="hero-body">
+    <div class="container">
+      <h1 class="title is-spaced">
+        使用Burp Suite的Collaborator查找.Onion隱藏服務的真實IP地址
+      </h1>
+      <h2 class="subtitle">
+        <div class="content">
+          <span class="icon">
+            <i class="fas fa-link"></i>
+          </span>
+          <a href="http://digitalforensicstips.com/2017/11/using-burp-suites-collaborator-to-find-the-true-ip-address-for-a-onion-hidden-service/">
+            http://digitalforensicstips.com/2017/11/using-burp-suites-collaborator-to-find-the-true-ip-address-for-a-onion-hidden-service/
+          </a>
+        </div>
+        <div class="level">
+          <div class="level-left">
+            <div class="level-item">
+              Translated by NotSurprised
+            </div>
+            <div class="level-item">
+              <div class="tags">
+                
+                
+                <a href="/tags/#forensics" class="tag">
+                  forensics
+                </a>
+                
+              </div>
+            </div>
+          </div>
+          <div class="level-right">
+            <div class="level-item">
+              Jan 29, 2018
+            </div>
+          </div>
+        </div>
+      </h2>
+    </div>
+  </div>
+  <article>
+    <div class="content">
+      <p>發佈於2017年11月23日</p>
+
+<p>在屬於感恩節的這一天，我要寫一些與生活息息相關並令人喜愛的東西：填充。我現在可不是在跟你聊今天下午茶的美味麵包還是啥的，我正在說的是將Payloads填充到網站上來尋找漏洞這件事。</p>
+
+<p>我們總是喜歡把奇怪的東西餵進網站。例如我們邊期待能達成SQL injection邊把我們的髒東西： <code class="highlighter-rouge">' or 1-1;</code> 餵給網站，我們塞了一些 <code class="highlighter-rouge">; cat / etc / passwd</code> 希望取得Command injection，我們把 <code class="highlighter-rouge">alert(“BEEP!!!”)</code> 當成萬能鑰匙插入每個鎖孔希望能XXS，我們甚至走火入魔填入我們的信用卡號碼，然後幻想它會有如<a href="https://www.youtube.com/watch?v=rQ6LC-olw9Q">1967年星際爭霸戰The Trouble with Tribbles</a>情節中的病毒自動蠶食資源充值。</p>
+
+<p>有時我們會立即收到來自我們Payload的即時反饋，並使我們可以在幾秒鐘內確認一個漏洞的存在。例如我們輸入 <code class="highlighter-rouge">' or 1-1;</code> 並以此繞過登錄畫面，我就可以開啟我的SQL injection花式技巧工具箱對它予取予求。但問題來了，當你注入Payload的地方回應總是高延遲該如何是好？那麼如果我現在對一個網站注入的Payload並不馬上執行，需要等到某個管理員在星期一上午查看日誌才發動該怎麼辦？如果我們希望能夠檢測Payload是否正常工作，那麼我們就需要建立一個每天24小時持續性的監聽系統。</p>
+
+<p>Burp Suite在2015年推出“Burp Collaborator”讓這件事變得更加容易。被免費打包同捆在Burp Suite Professional一起提供的“Burp Collaborator”是一個伺服器，它每年365天、每天24小時監聽您的Payload並進行後續反饋。(如果你沒有間歇性停電問題且有放好乖乖的話)</p>
+
+<p><img src="https://i.imgur.com/HCAY8ot.png" alt="" /></p>
+
+<p>截圖如上所示，我可以點擊“copy to clipboard”來生成一個我可以在任何Payload中使用的唯一的URL。</p>
+
+<p><img src="https://i.imgur.com/lndZ8SJ.png" alt="" /></p>
+
+<p>如果任何人或任何東西查看這個URL或訪問它，我會在我的Burp Suite Collaborator客戶端獲得一個通知。</p>
+
+<p><img src="https://i.imgur.com/LsrrUek.png" alt="" /></p>
+
+<p>這是功能是如此令人驚艷且難以置信的強大。現在我們已經有系統來補完Payload，並且無論我們處理多長時間的延遲，都能聽取它們的反饋。正如早些時候官方的Burp Suite twitter feed所說的，如果你沒有進行<a href="http://blog.portswigger.net/2017/07/oast-out-of-band-application-security.html">帶外應用安全測試（OAST）</a>，那麼你就做錯了。</p>
+
+<p><img src="https://i.imgur.com/5AShOCQ.png" alt="" /></p>
+
+<p>好的，這個真的非常簡單，也讓我們的更加興奮期待下一步，</p>
+
+<p><img src="https://i.imgur.com/qhrynr9.png" alt="" /></p>
+
+<p>您覺得我們應該從哪裡開始亂塞我們新的Payload？如果你興奮地說“無所不在!!!!”，那麼我喜歡您的風格，並完全同意這個意見！你知道嗎？一位名叫James Kettle的大神也同意了這個觀點，並在今年早些時候寫了一個叫做 <a href="https://github.com/PortSwigger/collaborator-everywhere">“Collaborator Everywhere”</a> 的Burp Suite Professional插件。作者還寫了一篇名為<a href="http://blog.portswigger.net/2017/07/cracking-lens-targeting-https-hidden.html">“Cracking the Lens: Targeting HTTP’s Hidden Attack-Surface”</a>的精彩Blog貼文，他在這篇文章裡向全世界介紹了他的插件。我的朋友Kat在Blackhat舉辦期間發給我這個連結，而我當時就坐在拉斯維加斯的一個戶外酒吧裡像個怪人一樣用我的手機把它從頭讀到尾，它好到我媽問我為何跪在電腦前，沒在唬的。</p>
+
+<p>Collaborator Everywhere希望通過Burp Suite自動將這些Collaborator payloads注入到我們所進行的網路瀏覽中來幫助我們識別後端系統和進程。而它究竟做了什麼？看看我剛剛瀏覽我的Blog時它自動插入的一些Header。</p>
+
+<p><img src="https://i.imgur.com/SxIX7Wz.png" alt="" /></p>
+
+<p>它會訪問一個特定的網站，所以我會從我的一個payload injection獲得了相應的DNS查詢：</p>
+
+<p><img src="https://i.imgur.com/mzTBKHO.png" alt="" /></p>
+
+<p>James還釋出了一個<a href="https://www.youtube.com/watch?v=zP4b3pw94s0">黑帽演講(你可以在這裡看到)</a>，他談論了所有他使用這些技術所完成的偉業。在觀看演講的過程中，我認為這種技術可能可被用來識別TOR .onion所隱藏的服務真實IP地址。</p>
+
+<p>我啟動了我的TOR瀏覽器，並為其配置Burp Suite連接。然後我瀏覽多個.onion隱藏服務，看看他們中的任何一個會給我一個Collaborator的pingback。最後，在我瀏覽到第二十個網站時，它成功了 :P</p>
+
+<p><img src="https://i.imgur.com/0TwVi8y.png" alt="" /></p>
+
+<p>我現在有一個與.onion隱藏服務相關聯的伺服器的真正IP地址，因為它查找了它被提交的含餌Header。</p>
+
+<p><img src="https://i.imgur.com/ahfdcGO.png" alt="" /></p>
+
+<p>我鼓勵您在您擁有或合法擁有測試權限的網站上使用這些技術。他們易於使用、有趣且非常有效。</p>
+
+<p>11/24/2017更新：</p>
+
+<p>我發布的這條推文頗受歡迎，並引發了包括<a href="https://twitter.com/cchuatl">@cchuatl</a>，<a href="https://twitter.com/albinowax">@albinowax</a>和<a href="https://twitter.com/einaros">@einaros</a>在內的好幾個人私訊我有趣的後續意見。該流程的關鍵之一即是該pingback來自很可能非常靠近主機伺服器DNS解析伺服器，但並不一定如此。而這個想法始終存在我的腦海中，這也就是為什麼我使用“關聯”而不是“擁有”的說法，但這方法絕對能夠增加隱藏地址的清晰度。</p>
+
+<p>更多像我此次提出的反饋正是使資安社群成為更為美好聚集地的一部分。我的目標是不公開任何人的.onion服務，這就是為什麼我清理了所有的屏幕截圖，但在上述截圖情況應非實際位址，但根據網站的內容以及解析器分析的IP地址與我預計的託管位置其實是內聯的，所以我相信它非常接近主機伺服器了。</p>
+
+    </div>
+  </article>
+  
+
+</div>
+
+    </main>
+    <footer class="footer">
+  <div class="container has-text-centered">
+    <div class="content">
+      Theme by
+      <a class="item" href="https://github.com/security-onigiri/security-onigiri">
+        <span class="icon">
+          <i class="fab fa-github"></i>
+        </span>
+        security-onigiri
+      </a>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>

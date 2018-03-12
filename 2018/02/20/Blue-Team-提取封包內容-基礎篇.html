@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Blue Team: 提取封包內容-基礎篇</title>
+  <meta name="description" content="Blue Team: 提取封包內容-基礎篇">
+
+  <link rel="canonical" href="https://security-onigiri.github.io//2018/02/20/Blue-Team-%E6%8F%90%E5%8F%96%E5%B0%81%E5%8C%85%E5%85%A7%E5%AE%B9-%E5%9F%BA%E7%A4%8E%E7%AF%87.html">
+  <link rel="alternate" type="application/rss+xml" title="" href="/feed.xml">
+
+  
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-115432550-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+  
+
+  
+  <link rel="stylesheet" type="text/css" href="/assets/security-onigiri-e45f1e8a374cbd7bc08e0d6d379f1d6513782a752a95247a059be105fdf4d810.css">
+  <script type="text/javascript" src="/assets/security-onigiri-e0d01fc4e3608020eb67fbf8c150af399b5e674f1492ca1bbb751596a52a359d.js"></script>
+</head>
+
+  <body>
+    <header>
+  <nav class="navbar is-dark">
+		<div class="navbar-brand">
+			<a class="navbar-item" href="/">
+        <img src="/assets/icon_avatar-63fb8ef941697015c2720bd8d2764b00ecd3d2d75db4a8da9244966f417daf8e.png">
+			</a>
+      <div class="navbar-burger" data-target="navMenu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+		</div>
+		<div class="navbar-menu" id="navMenu">
+			<div class="navbar-start">
+        
+        
+        <a class="navbar-item" href="/about/">
+          <span class="icon">
+            <i class="fas fa-user"></i>
+          </span>
+          About
+        </a>
+        
+        
+        
+        <a class="navbar-item" href="/tags/">
+          <span class="icon">
+            <i class="fas fa-tags"></i>
+          </span>
+          Tags
+        </a>
+        
+        
+        
+        <a class="navbar-item" href="/index.html">
+          <span class="icon">
+            <i class="fas fa-magic"></i>
+          </span>
+          Posts
+        </a>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+			</div>
+			<div class="navbar-end">
+				<a class="navbar-item" href="/feed.xml">
+          <span class="icon">
+            <i class="fas fa-rss"></i>
+          </span>
+					Subscribe
+				</a>
+			</div>
+		</div>
+	</nav>
+</header>
+
+    <main class="section">
+    <div class="container">
+  <div class="hero-body">
+    <div class="container">
+      <h1 class="title is-spaced">
+        Blue Team: 提取封包內容-基礎篇
+      </h1>
+      <h2 class="subtitle">
+        <div class="content">
+          <span class="icon">
+            <i class="fas fa-link"></i>
+          </span>
+          <a href="https://www.sneakymonkey.net/2017/03/03/pcap-file-extraction/">
+            https://www.sneakymonkey.net/2017/03/03/pcap-file-extraction/
+          </a>
+        </div>
+        <div class="level">
+          <div class="level-left">
+            <div class="level-item">
+              Translated by JohnThunder
+            </div>
+            <div class="level-item">
+              <div class="tags">
+                
+                
+                <a href="/tags/#forensics" class="tag">
+                  forensics
+                </a>
+                
+                
+                <a href="/tags/#network%20analysis" class="tag">
+                  network analysis
+                </a>
+                
+              </div>
+            </div>
+          </div>
+          <div class="level-right">
+            <div class="level-item">
+              Feb 20, 2018
+            </div>
+          </div>
+        </div>
+      </h2>
+    </div>
+  </div>
+  <article>
+    <div class="content">
+      <h1 id="blue-team-提取封包內容-基礎篇">Blue Team: 提取封包內容-基礎篇</h1>
+
+<p>這篇會提到如何從 PCAP 萃取資料，不論是普通的網路流量分析或是惡意程式的 Malware 分析都會需要從流量中提取資料。</p>
+
+<h2 id="wireshark">Wireshark</h2>
+<p>Wireshark 是你最好的選擇當你需要分析小型 PCAP 檔案，但當檔案大小超過 800MB 執行效能會下滑。</p>
+
+<ol>
+  <li>開啟 Wireshark，擷取流量並最小化</li>
+  <li>用瀏覽器開始 http://www.eicar.org/85-0-Download.html</li>
+  <li>下載 eicar 的樣本</li>
+  <li>當下載完成後停止擷取流量</li>
+  <li>用 http 當作過濾條件在 Wireshark的 display filter bar. 參考連結: <a href="https://biot.com/capstats/bpf.html">BPF Filter</a></li>
+  <li>輸出 HTTP 檔案 [File &gt; Export Objects &gt; HTTP].</li>
+  <li>選取、輸出 eicar 的檔案</li>
+  <li>存檔 Wireshark PCAP. [File &gt; Save As &gt; test_eicar.pcap]</li>
+</ol>
+
+<p><img src="https://imgur.com/gNHMVEL.png" alt="" /></p>
+
+<h2 id="bro-ids">Bro IDS</h2>
+
+<p>使用 Bro IDS
+稍微進階一點的工具，當你需要調查/分析比較大的 PCAP 檔案時十分方便而且容易自動化。並且 Bro 支援 PCAP 檔案以外還有即時網路流量分析。</p>
+
+<p>1.) Install Bro IDS (defaults)[/usr/local/bro]</p>
+
+<p>我個人建議使用 Docker 幫助你更快的完成環境設定 https://github.com/blacktop/docker-bro 
+但是提取方面的腳本並沒有在這個 Github 專案裡面，你會需要額外設置。</p>
+
+<p>2.) 在 local.bro 檔案寫入啟用 ‘extract all’  [/usr/local/bro/share/bro/local.bro]</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@load frameworks/files/extract-all-files
+</code></pre></div></div>
+
+<p>3.) 打開local.bro，修改預設提取檔案的最大上限預設值是 25MB。</p>
+
+<p>在我們的實驗中包含的檔案都較小，但還是建議修改預設的上限。如果你在生產、實際環境使用 Bro IDS，你應該要好好的保存、維護你的資料。</p>
+
+<p>[/usr/local/bro/share/bro/local.bro]</p>
+
+<p><code class="highlighter-rouge">redef FileExtract::default_limit = 1000000000;</code></p>
+
+<p>1000000000 = 1 GByte</p>
+
+<p>4.) 確認你將你的 config 部署到 Local Bro上。
+<code class="highlighter-rouge">broctl deploy</code></p>
+
+<p>5.) 用 Bro 分析我們在之前錄製的 PCAP 檔案，Bro 會在當前資料夾解開 PCAP 內容。</p>
+
+<p><code class="highlighter-rouge">bro -Cr test_eicar.pcap local.bro "Site::local_nets += { 10.0.0.0/24 }"</code></p>
+
+<p><img src="https://i.imgur.com/hoMsRVU.png" alt="" /></p>
+
+<p>打開 [files.log] 去辨識出哪個是 eicar 的檔案，得到 unique ID 後把資料解出來。</p>
+
+<p><img src="https://i.imgur.com/EE1BXVa.png" alt="" /></p>
+
+<p>Bro extraction的預設值: https://www.bro.org/sphinx/scripts/base/files/extract/main.bro.html</p>
+
+<h2 id="用雲端幫你分析">用雲端幫你分析</h2>
+
+<p>最近的新流行的方式，但其實後端也是用 BRO 或是 TShark 分析再幫你加上漂亮的圖表。</p>
+<center><img src="https://i.imgur.com/gAmDYtG.png" alt="" class="" /></center>
+
+<p><strong>請謹慎思考</strong></p>
+
+<p>當你要用這些服務之前你的封包檔案會被服務提供者取得，也就是你的封包內容也就會在網路被留存了。</p>
+
+<ul>
+  <li>https://www.networktotal.com</li>
+  <li>https://www.packettotal.com - T&amp;Cs</li>
+</ul>
+
+<p>下圖是 PacketTotal 的提取的範例圖</p>
+
+<p><img src="https://i.imgur.com/fb4FvPH.png" alt="" /></p>
+
+<h2 id="network-miner">Network Miner</h2>
+<p>NETRESEC 開發的 Windows GUI 有不錯效能的 PCAP 分析工具</p>
+
+<p>非常適合快速圖片分析當你有大量圖片在你的 PCAP 中。請注意的是，免費板只有 0.84Mbits/s 所以會需要一點時間當你要分析較大的 PCAP 的時候。</p>
+
+<p><img src="https://i.imgur.com/y1TXHxj.png" alt="" /></p>
+
+<p>Network Miner 會自動的提取、輸出檔案並用 IP 作為資料夾名稱。</p>
+
+<p><img src="https://i.imgur.com/phxhLd2.png" alt="" /></p>
+
+<p>不論是哪個工具，都有各自的優勢與劣勢。
+有些不易於自動化或是有些是用於臨時快速分析的，最好從這些裡面熟悉幾項。
+如果你是高手/重度使用者，個人建議是使用 Python/Scapy 應該會是最合適的。</p>
+
+<h2 id="延伸閱讀">延伸閱讀</h2>
+<ul>
+  <li><a href="https://www.sans.org/reading-room/whitepapers/forensics/extracting-files-network-packet-captures-36562">SANS Reading Room</a></li>
+  <li><a href="https://github.com/hosom/bro-file-extraction">Bro IDS Extraction Scripts</a></li>
+  <li><a href="https://github.com/caesar0301/awesome-pcaptools">Awesome-pcaptools list</a></li>
+  <li><a href="http://tools.kali.org/forensics/foremost">Foremost</a></li>
+  <li><a href="http://www.xplico.org/ http://tools.kali.org/information-gathering/xplico">Xplico</a></li>
+  <li><a href="https://github.com/sleuthkit/scalpel">Scalpel</a></li>
+  <li><a href="http://www.secdev.org/projects/scapy/">Scapy</a></li>
+</ul>
+
+    </div>
+  </article>
+  
+
+</div>
+
+    </main>
+    <footer class="footer">
+  <div class="container has-text-centered">
+    <div class="content">
+      Theme by
+      <a class="item" href="https://github.com/security-onigiri/security-onigiri">
+        <span class="icon">
+          <i class="fab fa-github"></i>
+        </span>
+        security-onigiri
+      </a>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>
