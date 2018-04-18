@@ -1,4 +1,166 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.7.3">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-04-02T16:50:50+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">使用 CVE-2017-5123 逃離 Docker 容器</title><link href="https://security-onigiri.github.io//2018/03/31/Escaping-Docker-container-using-CVE-2017-5123.html" rel="alternate" type="text/html" title="使用 CVE-2017-5123 逃離 Docker 容器" /><published>2018-03-31T00:00:00+08:00</published><updated>2018-03-31T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/03/31/Escaping-Docker-container-using-CVE-2017-5123</id><content type="html" xml:base="https://security-onigiri.github.io//2018/03/31/Escaping-Docker-container-using-CVE-2017-5123.html">&lt;p&gt;The post describes how I exploited the &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; vulnerability in order to modify the &lt;a href=&quot;https://www.kernel.org/pub/linux/libs/security/linux-privs/kernel-2.2/capfaq-0.2.txt&quot;&gt;Linux capabilities&lt;/a&gt; of a Docker container to gain elevated privileges, and ultimately escape the container jail. If you wnat to see how Twistlock would stop this vulnerability in its tracks, check out my follow up blog.&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.7.3">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-04-18T14:34:22+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">沒有RCE？那就直接SSH進去啊！</title><link href="https://security-onigiri.github.io//2018/04/18/rcessh.html" rel="alternate" type="text/html" title="沒有RCE？那就直接SSH進去啊！" /><published>2018-04-18T00:00:00+08:00</published><updated>2018-04-18T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/04/18/rcessh</id><content type="html" xml:base="https://security-onigiri.github.io//2018/04/18/rcessh.html">&lt;p&gt;&lt;del&gt;何不食肉糜?&lt;/del&gt;&lt;/p&gt;
+
+&lt;p&gt;[&lt;img src=&quot;http://blog.jr0ch17.com/images/2017-11-08_12h39_35.png&quot; alt=&quot;My Profile Photo&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://blog.jr0ch17.com/&quot; title=&quot;link to home of Jasmin Landry, a.k.a JR0ch17&quot;&gt;&lt;strong&gt;Jasmin Landry, a.k.a JR0ch17&lt;/strong&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;2018年1月25日 • 在&lt;a href=&quot;http://blog.jr0ch17.com/tags/#bugbounty&quot;&gt;bugbounty &lt;/a&gt;、&lt;a href=&quot;http://blog.jr0ch17.com/tags/#rce&quot;&gt;RCE &lt;/a&gt;、&lt;a href=&quot;http://blog.jr0ch17.com/tags/#shell&quot;&gt;Shell&lt;/a&gt;、&lt;a href=&quot;http://blog.jr0ch17.com/tags/#lfd&quot;&gt;LFD &lt;/a&gt;、&lt;a href=&quot;http://blog.jr0ch17.com/tags/#xss&quot;&gt;XSS &lt;/a&gt;、&lt;a href=&quot;http://blog.jr0ch17.com/tags/#xxe&quot;&gt;XXE &lt;/a&gt;、&lt;a href=&quot;http://blog.jr0ch17.com/tags/#ssh&quot;&gt;SSH &lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;這篇博文是關於我的第一篇 &lt;del&gt;RCE&lt;/del&gt; shell（或者隨便你想怎麼叫它），是篇我在2017年夏季獲得了一個Bug Bounty(錯誤賞金)計劃。這絕對沒有什麼特別之處，你甚至可能不會學到任何新東西，但如果你這樣做，我很高興我能幫你！我只是覺得這是一種獲得一個盒子的不同方式，特別是在Bug Bounty方面。&lt;/p&gt;
+
+&lt;h3 id=&quot;偵察總是挺有趣的&quot;&gt;偵察總是挺有趣的&lt;/h3&gt;
+
+&lt;p&gt;使用&lt;a href=&quot;https://github.com/aboul3la/Sublist3r&quot;&gt;Sublist3r&lt;/a&gt;，&lt;a href=&quot;https://github.com/michenriksen/aquatone&quot;&gt;Aquatone&lt;/a&gt;，&lt;a href=&quot;https://nmap.org/&quot;&gt;Nmap&lt;/a&gt;等工具對*.domain.com 範圍內的網域進行定期偵察後，我最終列出了數百個子域。我不知道從哪裡開始，因此我決定使用&lt;a href=&quot;https://github.com/ChrisTruncer/EyeWitness&quot;&gt;EyeWitness&lt;/a&gt;截取網頁截圖，以便了解哪些目標看起來很脆弱，以便我可以從這些截圖開始破冰。在EyeWitness報告中，有一個應用程序在8080埠上運行，它有一個我從未聽說過的CMS的默認主頁，因此我決定首先查看是那個CMS。通過瀏覽目標，我很快找到了一個登錄頁面，幸運的是，我的默認憑據是 &lt;strong&gt;admin：admin&lt;/strong&gt;。然而，它的管理面板中完全沒有任何東西，沒甚麼有料的訊息，完全沒有，它根本是空的。但我仍然決定將它以&lt;strong&gt;“管理面板中的默認憑據”&lt;/strong&gt;為標題的問題報告給Bug Bounty計劃，幸運的是即使我沒有獲得任何敏感訊息，他們也願意將其作為一個重要的bug進行獎勵。&lt;/p&gt;
+
+&lt;h3 id=&quot;jobert的名言&quot;&gt;Jobert的名言&lt;/h3&gt;
+
+&lt;p&gt;僅僅通過默認主頁的外觀以及它在管理面板中的樣子，我覺得應該還有更多細節在裡面。正如&lt;a href=&quot;https://twitter.com/jobertabma&quot;&gt;Jobert&lt;/a&gt;曾經說過的那樣，&lt;em&gt;如果它看起來很老很脆弱，那很可能就是你想的那樣！&lt;/em&gt;我決定看看CMS的網站，看看我能否獲得更多的訊息。這是一個開源軟體，所以我想我會在AWS上啟動一個EC2實例並將它安裝在那裡，以便我可以自己玩。我注意到該服務必須以sudo權限運行，這顯然不是最佳實作方式（稍後請牢記這點）。完成設置後，我做了一個快速的Google搜索，看看能否找到該軟體的任何現有CVE，有趣的是，再也找不到任何東西。所以這意味著很有可能沒有人對此軟體進行安全審查或滲透測試。我知道事實後該秀一波了!
+&lt;a href=&quot;https://memecreator.org/static/images/memes/3013268.jpg&quot;&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;簡潔快速的去發現些甚麼吧&quot;&gt;簡潔快速的去發現些甚麼吧&lt;/h3&gt;
+
+&lt;p&gt;我瀏覽了大約30分鐘到一個小時，以便很好地了解它是如何運作的。在我這樣做的時候，我很快找到了2個XSS; 一個存儲型，一個及時反應型。然後在檢查Burp Suite中的所有請求後，我最終找到了1個LFD和2個XXE。它有很多API終端，所以我查看了他們的API文檔，並很快意識到在該CMS上的每個可能的操作都有不正確的訪問控制。這意味著未經身份驗證的遠程攻擊者可以利用存儲的XSS，LFD和兩個XXE攻擊其自身，甚至無需登錄管理頁面。最重要的是，它也沒有CSRF保護，所以如果攻擊者不想利用這些漏洞，他們也可以很容易地創建一些CSRF攻擊並嘗試讓管理員為他們自動做這件事！&lt;/p&gt;
+
+&lt;h3 id=&quot;directory-traversal救世界&quot;&gt;/directory traversal救世界！&lt;/h3&gt;
+
+&lt;p&gt;此時此刻我已經預見，在這個CMS上成功製造RCE只是一個時間的問題。我只是需要繼續探索，然後我最終絕對會找到一個。我之前發現的一個有趣的終端是我可以更新模板文件。它有趣的點是它用於更新模板的參數。下面這就是它的樣子。 &lt;strong&gt;&lt;em&gt;(所有敏感信息已處理)&lt;/em&gt;&lt;/strong&gt;
+&lt;img src=&quot;http://blog.jr0ch17.com/images/POST_request.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;在成功更新後，回覆將如下所示。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://blog.jr0ch17.com/images/POST_Response.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;我必須嘗試的下一個邏輯是將路徑更改為其他內容，用以查看是否可以將文件上傳到&lt;code class=&quot;highlighter-rouge&quot;&gt;/config&lt;/code&gt;文件夾中。所以我給了它如下路徑:&lt;code class=&quot;highlighter-rouge&quot;&gt;/../../../../../../../../../../../../tmp/test.txt&lt;/code&gt;並用&lt;code class=&quot;highlighter-rouge&quot;&gt;This is a test.&lt;/code&gt;替換了POST的主體。我得到了與以前的請求相同的Response…太神啦！但是，我接下來該如何確認該文件是否已真正上傳完成了？不要忘記，這個測試是在我自己的伺服器上完成的，所以我可以自己檢查文件是否在那裡，但這太白箱了。我想走黑箱路線並找到另一種方法來確認這件事。於是就請到LFD來拯救世界啦！使用我已經發現的LFD/directory traversal來幫助我檢查確認文件是否完成上傳。而它真的上去了！ 
+&lt;img src=&quot;http://blog.jr0ch17.com/images/LFI.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;沒有rce現在該怎麼辦&quot;&gt;沒有RCE，現在該怎麼辦？&lt;/h3&gt;
+
+&lt;p&gt;好了！現在我知道我們可以上傳文件，而且不僅僅是傳到伺服器上的某些固定位置，我可以將它們上傳到任何我想要的地方，因為服務是以root權限運行。&lt;/p&gt;
+
+&lt;p&gt;當然，下一步是嘗試執行我上傳的文件嗎？那麼，事實證明，對我來說實際上是一個問題。該服務在Tomcat中是作為一個&lt;code class=&quot;highlighter-rouge&quot;&gt;war&lt;/code&gt;文件進行部署，所以沒有一個真正可以上傳和執行文件的特定路徑。也許如果有別人幫助的話，我可能已經想出如何解決這一點的方法，但由於我不太熟悉又沒人幫助，所以我很不幸的在那個時候無法做任何事情往下深入。這讓我回想起我在OSCP工作的日子。我手邊仍然有我的筆記，所以我翻了翻他們，並藉此獲得了一些想法。我首先上傳了一個bash腳本到&lt;code class=&quot;highlighter-rouge&quot;&gt;cron.hourly&lt;/code&gt;資料夾，但使用默認的操作系統配置，但這步棋並沒有成功。假設Bug Bounty計劃具有相同的默認設置，那麼這招很可能也無法成功運作。然後我告訴自己:好吧，我手上有root權限了，為什麼不直接SSH連到盒子裡？&lt;/p&gt;
+
+&lt;p&gt;為此，我必須將我的SSH密鑰上傳到伺服器。這很簡單，我只需要相應地配置路徑參數，並將我的SSH密鑰放在POST請求的主體中。 
+&lt;img src=&quot;http://blog.jr0ch17.com/images/SSH.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;剩下的最後一件事就是嘗試用我新上傳的SSH密鑰登錄。你看看，這不就成功了？&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://blog.jr0ch17.com/images/ID.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;現在我已經完成了我的目標，我決定是時候報告這些錯誤了。我聯繫了CMS的開發團隊，讓他們知道這些漏洞，他們立即回答我是否想加入他們的Slack團隊，以便我們可以更多地討論我的報告。我們通過幾次電話聯繫來澄清幾點，他們讓我在更新發布之前先測試看看他們的新版本。&lt;/p&gt;
+
+&lt;p&gt;我還將這些錯誤報告給使用該CMS的Bug Bounty計劃。我顯然沒有在他們的網站上測試任何東西，因為它不符合道德規範，但我確實為我的所有發現提供了一個清晰的PoC，要求他們測試他們的結果。我的所有報告都經過了驗證並被接受，其中也一併包括SSH密鑰的文件上傳的部分。這是我被認可的第一個“RCE”的Bug Bounty計劃！&lt;/p&gt;
+
+&lt;p&gt;如有任何問題或意見，請不要猶豫，直接在Twitter上DM我吧~ :)&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="Web" /><category term="Bug Bounty" /><category term="Penetration Test" /><summary type="html">何不食肉糜?</summary></entry><entry><title type="html">挖礦JavaScript代碼的感染趨勢</title><link href="https://security-onigiri.github.io//2018/04/18/javascript.html" rel="alternate" type="text/html" title="挖礦JavaScript代碼的感染趨勢" /><published>2018-04-18T00:00:00+08:00</published><updated>2018-04-18T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/04/18/javascript</id><content type="html" xml:base="https://security-onigiri.github.io//2018/04/18/javascript.html">&lt;p&gt;威脅研究&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;作者 &lt;a href=&quot;https://www.fortinet.com/blog/search.html?author=Eric+Chong&quot;&gt;Eric Chong&lt;/a&gt;&lt;/td&gt;
+      &lt;td&gt;2018年2月8日&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h2 id=&quot;1-charcode-javascript&quot;&gt;1. CharCode JavaScript&lt;/h2&gt;
+&lt;p&gt;2017年12月6日，FortiGuard實驗室發現了一個被入侵的網站 - acenespargc.com。查看源碼，我們注意到一個可疑的加密腳本，它使用eval（）函數將所有字符轉換為數字。我們使用了一個名為&lt;a href=&quot;http://jdstiles.com/java/cct.html&quot;&gt;CharCode Translator&lt;/a&gt;的工具將這些數字轉換  回程式碼。然後我們就可以反查到將使用者轉址到詐騙網頁或釣魚網站的鏈接。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/p2wS40L.png&quot; alt=&quot;&quot; /&gt;
+&lt;code class=&quot;highlighter-rouge&quot;&gt;第1部分&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/emTmBaL.png&quot; alt=&quot;&quot; /&gt;
+&lt;code class=&quot;highlighter-rouge&quot;&gt;第2部分&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;以上只是一個簡單的例子。犯罪者實際上可以根據地理位置自定義釣魚的內容，為了更好地避開檢測機制，它會在檢測到您之前曾訪問過釣魚頁面時消失。&lt;/p&gt;
+
+&lt;p&gt;使用這種技術，犯罪者可以隱藏惡意/網路釣魚/廣告URL，以免被肉眼看到。&lt;/p&gt;
+
+&lt;p&gt;正如你將在下面看到的，犯罪者現在已經採用這種技術來隱藏在受感染的網站中挖掘加密貨幣的JavaScript，這樣任何訪問該網站的人都將“受到感染”，並且他們的電腦將持續為犯罪者提供加密演算資源。我們將此類活動歸類為惡意行為，因為它未經其許可使用其他人的資源。&lt;/p&gt;
+
+&lt;h2 id=&quot;2使用打包工具隱藏coinhive腳本&quot;&gt;2.使用打包工具隱藏CoinHive腳本&lt;/h2&gt;
+
+&lt;p&gt;在12月28日，FortiGuard實驗室通過一位客戶的關係發現了另一個惡意網站正使用我們上面介紹的混淆技巧 - romance-fire[.]com。該網站包含用於加密貨幣挖掘的混淆惡意代碼。&lt;/p&gt;
+
+&lt;p&gt;我們發現了編碼腳本，並使用&lt;a href=&quot;http://matthewfl.com/unPacker.html&quot;&gt; packer tool &lt;/a&gt;來解壓縮腳本，發現該腳本與CoinHive有連接。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/jyV0AJw.png&quot; alt=&quot;&quot; /&gt;
+&lt;code class=&quot;highlighter-rouge&quot;&gt;來自源代碼的JavaScript&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/IjGjCUr.png&quot; alt=&quot;&quot; /&gt;
+&lt;code class=&quot;highlighter-rouge&quot;&gt;解壓縮JavaScript - 第1部分&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;我們注意到URL（hxxp：//3117488091/lib/jquery-3.2.1.min.js？v=3.2.11）似乎不是有效的IP或網域。於是我們做了一些研究，我們在&lt;a href=&quot;http://www.kloth.net/services/iplocate.php&quot;&gt;KLOTH.NET&lt;/a&gt;上轉換它後，發現’3117488091’是185.209.23.219的十進制IP。以下是結果：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/jO6HlvS.png&quot; alt=&quot;&quot; /&gt;
+該網站將URL轉換為&lt;code class=&quot;highlighter-rouge&quot;&gt;hxxp：//185.209.23.219/lib/jquery-3.2.1.min.js？v=3.2.11)&lt;/code&gt;。我們從該URL中查到相同的JavaScript模式，因此我們再次解壓縮腳本。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/Z32sbbB.png&quot; alt=&quot;&quot; /&gt;
+&lt;code class=&quot;highlighter-rouge&quot;&gt;解壓縮JavaScript - 第2部分&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;在最後一輪解包之後，我們終於能夠查看包含CoinHive URL的完整程式碼：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/TU9SUa0.png&quot; alt=&quot;&quot; /&gt;
+&lt;code class=&quot;highlighter-rouge&quot;&gt;解壓縮JavaScript - 第3部分&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;3來自github的coin礦工&quot;&gt;3.來自GitHub的Coin礦工&lt;/h2&gt;
+
+&lt;p&gt;2018年1月26日，我們發現了另一個網站 - sorteosrd[。]com，它也通過劫持訪問者的CPU來挖掘加密貨幣。這種加密惡意軟體再次允許劫持者在未經該電腦用戶許可的情況下藉由挖掘數位貨幣受益。我們相信這個網站可能已被挾持或網站管理員自己本身如此使用。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/QNmQTW1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;hxxp：//sorteosrd.com網站的源代碼：&lt;/code&gt;
+&lt;img src=&quot;https://i.imgur.com/RSEb8qr.png&quot; alt=&quot;&quot; /&gt;
+&lt;code class=&quot;highlighter-rouge&quot;&gt;暗中加密對用戶設備的影響&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;正如我們從上面的截圖中可以看到的那樣，加密貨幣挖礦機在訪問該網站後充分利用其CPU時會大大降低PC的速度。&lt;/p&gt;
+
+&lt;h2 id=&quot;4被挾持的網站---感染cryptocoin挖礦的黑莓&quot;&gt;4.被挾持的網站 - 感染CryptoCoin挖礦的黑莓&lt;/h2&gt;
+&lt;p&gt;CoinHive腳本的另一個被挾持的例子是一個絕對會令人驚訝的網站 - blackberrymobile[.]com上發現的。
+&lt;img src=&quot;https://i.imgur.com/wjclu4E.png&quot; alt=&quot;&quot; /&gt;
+&lt;code class=&quot;highlighter-rouge&quot;&gt;即使是黑莓網站也在短時間內被盜用在挖掘Monero加密貨幣。&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;5被挾持的網站---milk-new-zealand-感染-deepminer-工具&quot;&gt;5.被挾持的網站 - Milk New Zealand 感染 deepMiner 工具&lt;/h2&gt;
+&lt;p&gt;此外，我們還發現New Zealand最大的日記農場集團之一──Milk New Zealand也遭到了破壞。我們的AntiVirus實驗室檢測到來自該網站的惡意活動，所以我們查看他的源碼，發現其有使用github上的deepMiner工具，其中發現了一個用於挖掘Monero、Electroneum、Sumokoin等的腳本。請參見下面的截圖：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/QXgfpMu.png&quot; alt=&quot;&quot; /&gt;
+&lt;code class=&quot;highlighter-rouge&quot;&gt;使用deepMiner的JavaScript&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;根據上面屏幕截圖中的數據，我們了解到，這種腳本在其網域中使用DDNS，並且只會將CPU使用率增加50％，以使終端用戶受害者的負面使用者體驗不太明顯。&lt;/p&gt;
+
+&lt;h2 id=&quot;6甚至youtube也會通過投放挖礦廣告&quot;&gt;6.甚至YouTube也會通過投放挖礦廣告&lt;/h2&gt;
+
+&lt;p&gt;加密貨幣挖掘惡意軟體的問題越來越嚴重。隨著希望通過劫持CPU以從加密貨幣獲得收益的犯罪者數量不斷增加，加密技術越來越多地出現在惡意軟體中。一周前，一位犯罪者設法將挖礦腳本注入到線上廣告中後，幾個惡意廣告隨即在YouTube上彈出。幸運的是，YouTube迅速發現了該問題，並在兩小時內刪除了受影響的廣告。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/CO4RnSz.png&quot; alt=&quot;&quot; /&gt;
+&lt;code class=&quot;highlighter-rouge&quot;&gt;惡意加密YouTube廣告&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;你能做些什麼來防止或避免coin-miner劫持&quot;&gt;你能做些什麼來防止或避免Coin Miner劫持？&lt;/h2&gt;
+
+&lt;p&gt;清除瀏覽器緩存，或安裝ccleaner軟體，從電腦中查找並刪除不需要的文件和無效的Windows註冊表項。
+在瀏覽器中禁用JavaScript或運行腳本攔截工具或附加元件。
+安裝防病毒軟體，如FortiClient。
+安裝並運行AdBlocker或類似的工具，例如Ghostery。
+FortiGuard已將此Blog中列出的所有URL列進黑名單。&lt;/p&gt;
+
+&lt;h2 id=&quot;iocs&quot;&gt;IOCs:&lt;/h2&gt;
+
+&lt;p&gt;被挾持的網站：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;acenespargc[.]com&lt;/li&gt;
+  &lt;li&gt;www[.]romance-fire[.]com&lt;/li&gt;
+  &lt;li&gt;milknewzealand[.]com&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;已觀察到的虛擬貨幣挖掘網址：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;hxxp://coinhive[.]com&lt;/li&gt;
+  &lt;li&gt;hxxp://minerhills[.]com&lt;/li&gt;
+  &lt;li&gt;hxxp://crypto-webminer[.]com&lt;/li&gt;
+  &lt;li&gt;hxxp://sorteosrd[.]com&lt;/li&gt;
+  &lt;li&gt;hxxp://greenindex[.]dynamic-dns[.]net&lt;/li&gt;
+  &lt;li&gt;hxxps://github[.]com/deepwn/deepMiner&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>NotSurprised</name></author><category term="Web" /><category term="Coin Miner" /><category term="Obfuscation Technique" /><summary type="html">威脅研究</summary></entry><entry><title type="html">使用 CVE-2017-5123 逃離 Docker 容器</title><link href="https://security-onigiri.github.io//2018/03/31/Escaping-Docker-container-using-CVE-2017-5123.html" rel="alternate" type="text/html" title="使用 CVE-2017-5123 逃離 Docker 容器" /><published>2018-03-31T00:00:00+08:00</published><updated>2018-03-31T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/03/31/Escaping-Docker-container-using-CVE-2017-5123</id><content type="html" xml:base="https://security-onigiri.github.io//2018/03/31/Escaping-Docker-container-using-CVE-2017-5123.html">&lt;p&gt;The post describes how I exploited the &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; vulnerability in order to modify the &lt;a href=&quot;https://www.kernel.org/pub/linux/libs/security/linux-privs/kernel-2.2/capfaq-0.2.txt&quot;&gt;Linux capabilities&lt;/a&gt; of a Docker container to gain elevated privileges, and ultimately escape the container jail. If you wnat to see how Twistlock would stop this vulnerability in its tracks, check out my follow up blog.&lt;/p&gt;
 
 &lt;blockquote&gt;
   &lt;p&gt;這篇文章描述我如何利用 &lt;code class=&quot;highlighter-rouge&quot;&gt;waitid()&lt;/code&gt; 修改 Docker 容器的 Linux capabilities 從而取得更高的權限，最後逃離了容器監獄。如果你想要看看 Twistlock 如何在他的軌跡中阻止這個弱點，在這篇&lt;a href=&quot;https://www.twistlock.com/2018/01/16/blocking-malicious-behavior-exploits-containers-twistlock/&quot;&gt;文章&lt;/a&gt;有。&lt;/p&gt;
@@ -2358,122 +2520,4 @@ function UninstallAutoRuns-SyncAppvPublishing
 
 &lt;p&gt;來源                                                                                                                                                    &lt;br /&gt;
 &lt;a href=&quot;https://twitter.com/chrisbisnett&quot;&gt;Chris Bisnett (@chrisbisnett)&lt;/a&gt;                  &lt;br /&gt;
-&lt;a href=&quot;https://twitter.com/KyleHanslovan&quot;&gt;Kyle Hanslovan (@KyleHanslovan)&lt;/a&gt;&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="exploit" /><category term="vulnerability" /><summary type="html">by lopi 2017年10月25日發布</summary></entry><entry><title type="html">使用者名稱或密碼錯誤根本是鬼扯</title><link href="https://security-onigiri.github.io//2018/01/21/username-or-password-is-incorrect-is-bullshit.html" rel="alternate" type="text/html" title="使用者名稱或密碼錯誤根本是鬼扯" /><published>2018-01-21T00:00:00+08:00</published><updated>2018-01-21T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/01/21/username%20or%20password%20is%20incorrect%20is%20bullshit</id><content type="html" xml:base="https://security-onigiri.github.io//2018/01/21/username-or-password-is-incorrect-is-bullshit.html">&lt;h1 id=&quot;username-or-password-is-incorrect-is-bullshit&quot;&gt;username or password is incorrect is bullshit&lt;/h1&gt;
-
-&lt;p&gt;There’s a security best practice where sign ins aren’t supposed to say “password is incorrect”. Instead they’re supposed to say the “username or password is incorrect”. This “best practice” is bullshit.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;有一個資安最佳實踐表示登入不該回應 “密碼錯誤” 而是應該回應 “使用者名稱或密碼錯誤” 這個”最佳實踐”根本鬼扯。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Strip and GitHub’s sign ins for example follow this practice.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;Strip 與 Github 的登入遵守了這個實踐如下所示&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*hisYwzk7kIhUdfxZ9vwBBA.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*Nie0O5MurE_fvTuKbYkXzw.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;The idea is if an attacker knows a username, he or she could concentrate on that account using SQL injection, brute forcing the password, phishing, and so on.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;用意為當一個攻擊者知道一個使用者名稱，他或她可以專注在這個讓帳戶之上，使用如資料隱碼攻擊、暴力嘗試密碼、釣魚等攻擊。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Here’s the problem.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;問題在這。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*k9s51jl1KGEx59iyiojYPg.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*XjOkBwmPXh613-nldQlSYQ.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;All a hacker has to do is sign up to know whether the username is valid or not. Why bother then with obfuscating the sign in ? Only the dumbest, laziest hacker is stopped by the “username or password is incorrect” sign in. You gain no security, yet your customers lose clarity.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;一個攻擊者需要做的就只有註冊，便可以知道這個使用者名稱是否為有效的。為什麼模稜兩可的登入可以擾煩到他們呢 ? 只有最笨、最懶的駭客會被”使用者名稱或密碼錯誤”登入給阻止。你並不會從中得到任何的安全，而是客戶們失去了清晰度。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Stipe has their form submission behind reCAPTCHA to prevent naive scripts attacking their sign up. However this has been broken multiple times (1, 2) and likely won’t ever be perfect. Even if reCATCHA was perfect, a hacker could manually validate their usernames of interest by trying to sign up, then automate an attack on the sign in page.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;Strip 的表單提交背後有 reCAPTCHA 來避免天真的腳本攻擊他們的註冊功能。然而這已經被玩壞好多次了(&lt;a href=&quot;https://www.blackhat.com/docs/asia-16/materials/asia-16-Sivakorn-Im-Not-a-Human-Breaking-the-Google-reCAPTCHA-wp.pdf&quot;&gt;1&lt;/a&gt;, &lt;a href=&quot;https://github.com/eastee/rebreakcaptcha&quot;&gt;2&lt;/a&gt;)&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;To prevent attackers from knowing whether an account exists or not your signup must only take an email address and provide no feedback in the UI if the sign up succeeded or not. Instead the user would receive an email saying they’re signed up. The only way an attacker would know if an account exists is if they had access to the target’s email.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;為了避免攻擊者們得知一個帳戶是否存在，你的註冊必須只透過一個 email 地址而且在 UI 中不提供任何反饋，無論成功與否。取而代之的是使用者將收到一封 email 表示他們已經註冊。攻擊者唯一會知道帳戶存在的方法就是，他們已經可以存取目標的 email。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Barring that, “username or password incorrect” is just bullshit.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;喔還有，”使用者名稱或是密碼錯誤”根本狗屎爛蛋。&lt;/p&gt;
-&lt;/blockquote&gt;</content><author><name>jhe</name></author><category term="Web" /><summary type="html">username or password is incorrect is bullshit</summary></entry><entry><title type="html">Blue Team：檢測偵察活動</title><link href="https://security-onigiri.github.io//2017/11/18/recon-detection.html" rel="alternate" type="text/html" title="Blue Team：檢測偵察活動" /><published>2017-11-18T00:00:00+08:00</published><updated>2017-11-18T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2017/11/18/recon-detection</id><content type="html" xml:base="https://security-onigiri.github.io//2017/11/18/recon-detection.html">&lt;h1 id=&quot;blue-team檢測偵察活動&quot;&gt;&lt;strong&gt;Blue Team：檢測偵察活動&lt;/strong&gt;&lt;/h1&gt;
-
-&lt;p&gt;附註：本文最初出現在 CrowdStrike 部落格上。&lt;/p&gt;
-
-&lt;p&gt;少數blue team會願意花費時間在檢測偵察活動這件事上。網路受到近乎連續掃描的流量衝擊，然後在其中分辨可疑目標活動與網路雜訊可能非常困難。但是，在攻擊的早期階段，您仍然可以採取一些措施來對抗偵察活動。&lt;/p&gt;
-
-&lt;h2 id=&quot;最好的偵查方式是自己做偵查&quot;&gt;最好的偵查方式是自己做偵查&lt;/h2&gt;
-&lt;p&gt;我們都知道偵察活動是無所不在的，而最好的防守就是藉由掃描您自己的網路來在這場攻防遊戲中保持領先。規劃定期的資產識別和漏洞掃描，並以最優先級考慮漏洞更新。如果您團隊中的某人正在定期測試關鍵網頁應用程序中的 SQL injection 漏洞，那您則不必在某個周末花費時間來修復新的 sqlmap pwnage。同樣的預先籌備行動可以幫助緩解主動和被動的偵察活動帶來的壓力。我們的團隊經常幫助客戶進行開源數據收集，藉以識別公司或員工資產是否有不必要的訊息洩漏。這本該是 red team 應該做的─幫助組織預見攻擊並限制其攻擊面。&lt;/p&gt;
-
-&lt;h2 id=&quot;檢測---深入查看&quot;&gt;檢測 - 深入查看&lt;/h2&gt;
-&lt;p&gt;掃描偵查活動通常不難自己檢測。例如，以下的Log難道像是正常Googlebot的活動？&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/OxFusYv.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;圖1：在部落格中所見的 Nikto 的掃描內容&lt;/p&gt;
-
-&lt;p&gt;我們甚至可以通過頻率分析來識別並迴避探測，例如監視每個 IP 地址的故障次數或堆疊用戶代理字串，藉以發現異常。偵查對手在偽造用戶代理中出現錯誤或者無法更改掃描儀提供的默認值的數量是極其驚人的。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; WOW64; Trident/6.0)
-Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)
-mozilla/5.0(compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)
-Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322)
-Mozilla/5.0 (Windows; U; Windows NT 6.1; ru; rv:2.2.0.3) Gecko/20100101 Firefox/37.0
-Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10; rv:33.0) Gecko/20100101 Firefox/33.0
-Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2224.3 Safari/537.36
-Mozilla/5.0 (Android 4.4; Mobile; rv:41.0) Gecko/41.0 Firefox/41.0
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;圖2：用戶的堆疊分析。你可以發現異常值嗎？&lt;/p&gt;
-
-&lt;p&gt;雖然這看起來很簡單容易，但導致檢測無效的其實是當您面向網路服務器的巨量的偵察活動，會有杯水車薪之感。所以相反的，應該將您的努力集中在您的內部網絡上。許多組織都過度資源傾斜在防衛面向公網路的資源層面，但內部伺服器卻在很大程度上被忽視。這是極其危險的，因為攻擊者一旦在內部網路中獲取立足之地，他們通常會掃描內部網頁應用程序來幫助轉發，藉以提升權限並收集敏感數據。
-在檢查內部伺服器 Log 時，偵測活動檢測則更為可行。您應該可以看到企業中存在的設備的用戶代理字符串相對較小─因此查詢內部資源的 Googlebot 將非常可疑。特別是一旦過濾掉自己組織的內部漏洞掃描器活動，掃描偵查活動也應更易於識別。想像一下在內部應用伺服器 Log 中看到類似圖3的異常情況。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/H2DuQKz.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;圖3：識別Sqlmap掃描的Web日誌&lt;/p&gt;
-
-&lt;h2 id=&quot;自動檢測&quot;&gt;自動檢測&lt;/h2&gt;
-&lt;p&gt;通過對內部 Log 的間歇性手動審查，能自動檢測常見的偵察活動則更為理想。監控模式下的 Web 應用程序防火牆等工具可以可靠地檢測常見的偵察活動，如 SQL injection，當僅針對內部請求時，警報應更為準確。然而，也許最具有效的偵察能力是網路安全監控（NSM）。雖然它需要內部傳感器布署和可見性，但可以在整個攻擊週期中分配資源。一個針對“出色的新興威脅公開規則”快速總結則顯示了各種可用於在偵察階段檢測惡意行為的特徵。圖4中顯示了兩個例子。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;| alert tcp $EXTERNAL_NET any -&amp;gt; $HTTP_SERVERS $HTTP_PORTS (msg:”ET SCAN Possible SQLMAP Scan”; flow:established,to_server; content:” AND “; http_uri; content:”AND (“; http_uri; pcre:”/\x20AND\x20[0-9]{6}\x3D[0-9]{4}/U”; detection_filter:track by_dst, count 4, seconds 20; reference:url,sqlmap.sourceforge.net; reference:url,www.darknet.org.uk/2011/04/sqlmap-0-9-released-automatic-blind-sql-injection-tool/; classtype:attempted-recon; sid:2012755; rev:3;) alert http $EXTERNAL_NET any -&amp;gt; $HTTP_SERVERS any (msg:”GPL EXPLOIT unicode directory traversal attempt”; flow:to_server,established; content:”/..%c1%9c../”; http_raw_uri; reference:bugtraq,1806; reference:cve,2000-0884; reference:nessus,10537; classtype:web-application-attack; sid:2100983; rev:19;) | 
-| -------- | 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;圖4：偵察活動的示例新興威脅簽名&lt;/p&gt;
-
-&lt;p&gt;一旦監控到位並且傳感器已被調整至最佳，NSM 警報就會像圖5中的那樣，可以很容易地進行偵察檢測。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;| {“timestamp”:”2016-02-10T09:50:04.005484+0000″,”flow_id”:140389013543568,”event_type”:”alert”, “src_ip”:”172.16.30.149″,”src_port”:56173,”dest_ip”:”172.16.10.70″,”dest_port”:80,”proto”:”TCP”,”alert”:{“action”:”allowed”,”gid”:1,”signature_id”:2100983,”rev”:19,”signature”:”GPL EXPLOIT unicode directory traversal attempt”,”category”:”Web Application Attack”,”severity”:1,”tx_id”:0}, “payload_printable”:”0mk………….GET /scripts/..%c1%9c../winnt/system32/cmd.exe?/c+dir HTTP/1.1\r\nHost: 172.16.10.70\r\nConnection: Keep-Alive\r\nQua”,”stream”:1} | 
-| -------- | 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;圖5：應用服務器掃描觸發的Suricata警報示例&lt;/p&gt;
-
-&lt;p&gt;另一個NSM選項越來越受歡迎則是 Bro IDS。Bro 的事件引擎和策略腳本給予非常好的異常檢測。更幸運的是，已經有腳本可用於在 SQL injection 之類的事件上進行警報，例如 detect-sqli.bro。為了使檢測成為可能，您將需要擴展您的工作並將警報導入分析工具。我們的團隊使用 Splunk，圖6顯示了用於分析的 Bro SQL injection 警報的集合。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/vB2K20C.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;圖6：Bro SQL注入警報導入Splunk&lt;/p&gt;
-
-&lt;h2 id=&quot;結論&quot;&gt;結論&lt;/h2&gt;
-
-&lt;p&gt;雖然在殺戮鏈 (kill chain）中有更多收益較高的機會可以進一步檢測攻擊者的活動，但我們認為檢測偵察活動不應該被忽視。偵察自己的網路，並由攻擊者觀點來獲得潛在弱點。網路結構本該規劃成可監控關鍵的內部網路和系統，並將偵查工作集中在那裡。從自我偵查開始，並以此持續優化您個人的高保真度特徵值。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="recon" /><summary type="html">Blue Team：檢測偵察活動</summary></entry></feed>
+&lt;a href=&quot;https://twitter.com/KyleHanslovan&quot;&gt;Kyle Hanslovan (@KyleHanslovan)&lt;/a&gt;&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="exploit" /><category term="vulnerability" /><summary type="html">by lopi 2017年10月25日發布</summary></entry></feed>

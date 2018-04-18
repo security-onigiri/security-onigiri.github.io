@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>挖礦JavaScript代碼的感染趨勢</title>
+  <meta name="description" content="威脅研究">
+
+  <link rel="canonical" href="https://security-onigiri.github.io//2018/04/18/javascript.html">
+  <link rel="alternate" type="application/rss+xml" title="" href="/feed.xml">
+
+  
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-115432550-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+  
+
+  
+  <link rel="stylesheet" type="text/css" integrity="sha256-MXeYy2qQcQOH0sCAZTFAtJ954+zVLhFro9BIQPmsNZY=" crossorigin="anonymous" href="/assets/security-onigiri-317798cb6a90710387d2c080653140b49f79e3ecd52e116ba3d04840f9ac3596.css">
+  <script src="/assets/security-onigiri-78c998eff14e928820d06ef0d7c9f036c17e59fe03207c25df96229271da0fdc.js" integrity="sha256-eMmY7/FOkogg0G7w18nwNsF+Wf4DIHwl35YiknHaD9w=" crossorigin="anonymous" type="text/javascript"></script>
+</head>
+
+  <body>
+    <header>
+  <nav class="navbar is-dark">
+		<div class="navbar-brand">
+			<a class="navbar-item" href="/">
+        <img src="/assets/icon_avatar-63fb8ef941697015c2720bd8d2764b00ecd3d2d75db4a8da9244966f417daf8e.png" integrity="sha256-Y/uO+UFpcBXCcgvY0nZLAOzT0tddtKjakkSWb0F9r44=" crossorigin="anonymous">
+			</a>
+      <div class="navbar-burger" data-target="navMenu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+		</div>
+		<div class="navbar-menu" id="navMenu">
+			<div class="navbar-start">
+        
+        
+        <a class="navbar-item" href="/about/">
+          <span class="icon">
+            <i class="fas fa-user"></i>
+          </span>
+          關於
+        </a>
+        
+        
+        
+        <a class="navbar-item" href="/tags/">
+          <span class="icon">
+            <i class="fas fa-tags"></i>
+          </span>
+          標籤
+        </a>
+        
+        
+        
+        <a class="navbar-item" href="/index.html">
+          <span class="icon">
+            <i class="fas fa-book"></i>
+          </span>
+          文章
+        </a>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+			</div>
+			<div class="navbar-end">
+				<a class="navbar-item" href="/feed.xml">
+          <span class="icon">
+            <i class="fas fa-rss"></i>
+          </span>
+					訂閱
+				</a>
+			</div>
+		</div>
+	</nav>
+</header>
+
+    <main id="main" class=section">
+    <section class="container is-fluid">
+      <div class="hero-body">
+  <div class="container">
+    <h1 class="title is-spaced">
+      挖礦JavaScript代碼的感染趨勢
+    </h1>
+    <h2 class="subtitle">
+      <div class="content">
+        <span class="icon">
+          <i class="fas fa-link"></i>
+        </span>
+        <a href="https://blog.fortinet.com/2018/02/07/the-growing-trend-of-coin-miner-javascript-infection">
+          https://blog.fortinet.com/2018/02/07/the-growing-trend-of-coin-miner-javascript-infection
+        </a>
+      </div>
+      <div class="level">
+        <div class="level-left">
+          <div class="level-item">
+            Translated by NotSurprised
+          </div>
+          <div class="level-item">
+            <div class="tags">
+              
+              
+              <a href="/tags/#Web" class="tag">
+                Web
+              </a>
+              
+              
+              <a href="/tags/#Coin%20Miner" class="tag">
+                Coin Miner
+              </a>
+              
+              
+              <a href="/tags/#Obfuscation%20Technique" class="tag">
+                Obfuscation Technique
+              </a>
+              
+            </div>
+          </div>
+        </div>
+        <div class="level-right">
+          <div class="level-item">
+            Apr 18, 2018
+          </div>
+        </div>
+      </div>
+    </h2>
+  </div>
+</div>
+<div class="container">
+  <article>
+    <div class="content">
+      <p>威脅研究</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>作者 <a href="https://www.fortinet.com/blog/search.html?author=Eric+Chong">Eric Chong</a></td>
+      <td>2018年2月8日</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="1-charcode-javascript">1. CharCode JavaScript</h2>
+<p>2017年12月6日，FortiGuard實驗室發現了一個被入侵的網站 - acenespargc.com。查看源碼，我們注意到一個可疑的加密腳本，它使用eval（）函數將所有字符轉換為數字。我們使用了一個名為<a href="http://jdstiles.com/java/cct.html">CharCode Translator</a>的工具將這些數字轉換  回程式碼。然後我們就可以反查到將使用者轉址到詐騙網頁或釣魚網站的鏈接。</p>
+
+<p><img src="https://i.imgur.com/p2wS40L.png" alt="" />
+<code class="highlighter-rouge">第1部分</code></p>
+
+<p><img src="https://i.imgur.com/emTmBaL.png" alt="" />
+<code class="highlighter-rouge">第2部分</code></p>
+
+<p>以上只是一個簡單的例子。犯罪者實際上可以根據地理位置自定義釣魚的內容，為了更好地避開檢測機制，它會在檢測到您之前曾訪問過釣魚頁面時消失。</p>
+
+<p>使用這種技術，犯罪者可以隱藏惡意/網路釣魚/廣告URL，以免被肉眼看到。</p>
+
+<p>正如你將在下面看到的，犯罪者現在已經採用這種技術來隱藏在受感染的網站中挖掘加密貨幣的JavaScript，這樣任何訪問該網站的人都將“受到感染”，並且他們的電腦將持續為犯罪者提供加密演算資源。我們將此類活動歸類為惡意行為，因為它未經其許可使用其他人的資源。</p>
+
+<h2 id="2使用打包工具隱藏coinhive腳本">2.使用打包工具隱藏CoinHive腳本</h2>
+
+<p>在12月28日，FortiGuard實驗室通過一位客戶的關係發現了另一個惡意網站正使用我們上面介紹的混淆技巧 - romance-fire[.]com。該網站包含用於加密貨幣挖掘的混淆惡意代碼。</p>
+
+<p>我們發現了編碼腳本，並使用<a href="http://matthewfl.com/unPacker.html"> packer tool </a>來解壓縮腳本，發現該腳本與CoinHive有連接。</p>
+
+<p><img src="https://i.imgur.com/jyV0AJw.png" alt="" />
+<code class="highlighter-rouge">來自源代碼的JavaScript</code></p>
+
+<p><img src="https://i.imgur.com/IjGjCUr.png" alt="" />
+<code class="highlighter-rouge">解壓縮JavaScript - 第1部分</code></p>
+
+<p>我們注意到URL（hxxp：//3117488091/lib/jquery-3.2.1.min.js？v=3.2.11）似乎不是有效的IP或網域。於是我們做了一些研究，我們在<a href="http://www.kloth.net/services/iplocate.php">KLOTH.NET</a>上轉換它後，發現’3117488091’是185.209.23.219的十進制IP。以下是結果：</p>
+
+<p><img src="https://i.imgur.com/jO6HlvS.png" alt="" />
+該網站將URL轉換為<code class="highlighter-rouge">hxxp：//185.209.23.219/lib/jquery-3.2.1.min.js？v=3.2.11)</code>。我們從該URL中查到相同的JavaScript模式，因此我們再次解壓縮腳本。</p>
+
+<p><img src="https://i.imgur.com/Z32sbbB.png" alt="" />
+<code class="highlighter-rouge">解壓縮JavaScript - 第2部分</code></p>
+
+<p>在最後一輪解包之後，我們終於能夠查看包含CoinHive URL的完整程式碼：</p>
+
+<p><img src="https://i.imgur.com/TU9SUa0.png" alt="" />
+<code class="highlighter-rouge">解壓縮JavaScript - 第3部分</code></p>
+
+<h2 id="3來自github的coin礦工">3.來自GitHub的Coin礦工</h2>
+
+<p>2018年1月26日，我們發現了另一個網站 - sorteosrd[。]com，它也通過劫持訪問者的CPU來挖掘加密貨幣。這種加密惡意軟體再次允許劫持者在未經該電腦用戶許可的情況下藉由挖掘數位貨幣受益。我們相信這個網站可能已被挾持或網站管理員自己本身如此使用。</p>
+
+<p><img src="https://i.imgur.com/QNmQTW1.png" alt="" /></p>
+
+<p><code class="highlighter-rouge">hxxp：//sorteosrd.com網站的源代碼：</code>
+<img src="https://i.imgur.com/RSEb8qr.png" alt="" />
+<code class="highlighter-rouge">暗中加密對用戶設備的影響</code></p>
+
+<p>正如我們從上面的截圖中可以看到的那樣，加密貨幣挖礦機在訪問該網站後充分利用其CPU時會大大降低PC的速度。</p>
+
+<h2 id="4被挾持的網站---感染cryptocoin挖礦的黑莓">4.被挾持的網站 - 感染CryptoCoin挖礦的黑莓</h2>
+<p>CoinHive腳本的另一個被挾持的例子是一個絕對會令人驚訝的網站 - blackberrymobile[.]com上發現的。
+<img src="https://i.imgur.com/wjclu4E.png" alt="" />
+<code class="highlighter-rouge">即使是黑莓網站也在短時間內被盜用在挖掘Monero加密貨幣。</code></p>
+
+<h2 id="5被挾持的網站---milk-new-zealand-感染-deepminer-工具">5.被挾持的網站 - Milk New Zealand 感染 deepMiner 工具</h2>
+<p>此外，我們還發現New Zealand最大的日記農場集團之一──Milk New Zealand也遭到了破壞。我們的AntiVirus實驗室檢測到來自該網站的惡意活動，所以我們查看他的源碼，發現其有使用github上的deepMiner工具，其中發現了一個用於挖掘Monero、Electroneum、Sumokoin等的腳本。請參見下面的截圖：</p>
+
+<p><img src="https://i.imgur.com/QXgfpMu.png" alt="" />
+<code class="highlighter-rouge">使用deepMiner的JavaScript</code></p>
+
+<p>根據上面屏幕截圖中的數據，我們了解到，這種腳本在其網域中使用DDNS，並且只會將CPU使用率增加50％，以使終端用戶受害者的負面使用者體驗不太明顯。</p>
+
+<h2 id="6甚至youtube也會通過投放挖礦廣告">6.甚至YouTube也會通過投放挖礦廣告</h2>
+
+<p>加密貨幣挖掘惡意軟體的問題越來越嚴重。隨著希望通過劫持CPU以從加密貨幣獲得收益的犯罪者數量不斷增加，加密技術越來越多地出現在惡意軟體中。一周前，一位犯罪者設法將挖礦腳本注入到線上廣告中後，幾個惡意廣告隨即在YouTube上彈出。幸運的是，YouTube迅速發現了該問題，並在兩小時內刪除了受影響的廣告。</p>
+
+<p><img src="https://i.imgur.com/CO4RnSz.png" alt="" />
+<code class="highlighter-rouge">惡意加密YouTube廣告</code></p>
+
+<h2 id="你能做些什麼來防止或避免coin-miner劫持">你能做些什麼來防止或避免Coin Miner劫持？</h2>
+
+<p>清除瀏覽器緩存，或安裝ccleaner軟體，從電腦中查找並刪除不需要的文件和無效的Windows註冊表項。
+在瀏覽器中禁用JavaScript或運行腳本攔截工具或附加元件。
+安裝防病毒軟體，如FortiClient。
+安裝並運行AdBlocker或類似的工具，例如Ghostery。
+FortiGuard已將此Blog中列出的所有URL列進黑名單。</p>
+
+<h2 id="iocs">IOCs:</h2>
+
+<p>被挾持的網站：</p>
+
+<ul>
+  <li>acenespargc[.]com</li>
+  <li>www[.]romance-fire[.]com</li>
+  <li>milknewzealand[.]com</li>
+</ul>
+
+<p>已觀察到的虛擬貨幣挖掘網址：</p>
+
+<ul>
+  <li>hxxp://coinhive[.]com</li>
+  <li>hxxp://minerhills[.]com</li>
+  <li>hxxp://crypto-webminer[.]com</li>
+  <li>hxxp://sorteosrd[.]com</li>
+  <li>hxxp://greenindex[.]dynamic-dns[.]net</li>
+  <li>hxxps://github[.]com/deepwn/deepMiner</li>
+</ul>
+
+    </div>
+  </article>
+  <section class="section">
+    
+
+  </section>
+</div>
+
+    </section>
+    </main>
+    <footer class="footer">
+  <div class="container has-text-centered">
+    <div class="content">
+      Theme by
+      <a class="item" href="https://github.com/security-onigiri/security-onigiri">
+        <span class="icon">
+          <i class="fab fa-github"></i>
+        </span>
+        security-onigiri
+      </a>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>
