@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>DNS重綁 偷你以太幣</title>
+  <meta name="description" content="●ret2got ●未分類 ●2018年1月19日 ●約4分鐘可讀完 當我們針對如何利用Tavis Ormandy發掘的在本地主機上的未驗證JSON-RPC服務開展討論時，我所想到的第一件事就是把這手法套在以太坊的客戶端（Geth，Mist與Parity）。">
+
+  <link rel="canonical" href="https://security-onigiri.github.io//2018/05/13/dns.html">
+  <link rel="alternate" type="application/rss+xml" title="" href="/feed.xml">
+
+  
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-115432550-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+  
+
+  
+  <link rel="stylesheet" type="text/css" integrity="sha256-MXeYy2qQcQOH0sCAZTFAtJ954+zVLhFro9BIQPmsNZY=" crossorigin="anonymous" href="/assets/security-onigiri-317798cb6a90710387d2c080653140b49f79e3ecd52e116ba3d04840f9ac3596.css">
+  <script src="/assets/security-onigiri-78c998eff14e928820d06ef0d7c9f036c17e59fe03207c25df96229271da0fdc.js" integrity="sha256-eMmY7/FOkogg0G7w18nwNsF+Wf4DIHwl35YiknHaD9w=" crossorigin="anonymous" type="text/javascript"></script>
+</head>
+
+  <body>
+    <header>
+  <nav class="navbar is-dark">
+		<div class="navbar-brand">
+			<a class="navbar-item" href="/">
+        <img src="/assets/icon_avatar-63fb8ef941697015c2720bd8d2764b00ecd3d2d75db4a8da9244966f417daf8e.png" integrity="sha256-Y/uO+UFpcBXCcgvY0nZLAOzT0tddtKjakkSWb0F9r44=" crossorigin="anonymous">
+			</a>
+      <div class="navbar-burger" data-target="navMenu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+		</div>
+		<div class="navbar-menu" id="navMenu">
+			<div class="navbar-start">
+        
+        
+        <a class="navbar-item" href="/about/">
+          <span class="icon">
+            <i class="fas fa-user"></i>
+          </span>
+          關於
+        </a>
+        
+        
+        
+        <a class="navbar-item" href="/tags/">
+          <span class="icon">
+            <i class="fas fa-tags"></i>
+          </span>
+          標籤
+        </a>
+        
+        
+        
+        <a class="navbar-item" href="/index.html">
+          <span class="icon">
+            <i class="fas fa-book"></i>
+          </span>
+          文章
+        </a>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+			</div>
+			<div class="navbar-end">
+				<a class="navbar-item" href="/feed.xml">
+          <span class="icon">
+            <i class="fas fa-rss"></i>
+          </span>
+					訂閱
+				</a>
+			</div>
+		</div>
+	</nav>
+</header>
+
+    <main id="main" class=section">
+    <section class="container is-fluid">
+      <div class="hero-body">
+  <div class="container">
+    <h1 class="title is-spaced">
+      DNS重綁 偷你以太幣
+    </h1>
+    <h2 class="subtitle">
+      <div class="content">
+        <span class="icon">
+          <i class="fas fa-link"></i>
+        </span>
+        <a href="https://ret2got.wordpress.com/2018/01/19/how-your-ethereum-can-be-stolen-using-dns-rebinding/">
+          https://ret2got.wordpress.com/2018/01/19/how-your-ethereum-can-be-stolen-using-dns-rebinding/
+        </a>
+      </div>
+      <div class="level">
+        <div class="level-left">
+          <div class="level-item">
+            Translated by NotSurprised
+          </div>
+          <div class="level-item">
+            <div class="tags">
+              
+              
+              <a href="/tags/#Web" class="tag">
+                Web
+              </a>
+              
+              
+              <a href="/tags/#Blockchain" class="tag">
+                Blockchain
+              </a>
+              
+            </div>
+          </div>
+        </div>
+        <div class="level-right">
+          <div class="level-item">
+            May 13, 2018
+          </div>
+        </div>
+      </div>
+    </h2>
+  </div>
+</div>
+<div class="container">
+  <article>
+    <div class="content">
+      <p>●<a href="https://ret2got.wordpress.com/author/ret2got/">ret2got</a> ●未分類 ●2018年1月19日 ●約4分鐘可讀完</p>
+
+<p>當我們針對如何利用<a href="https://twitter.com/taviso/">Tavis Ormandy</a>發掘的<strong>在本地主機上的未驗證<code class="highlighter-rouge">JSON-RPC</code>服務</strong>開展討論時，我所想到的第一件事就是把這手法套在以太坊的客戶端（Geth，Mist與Parity）。</p>
+
+<p>大多數以太坊客戶端都在本機上的8545埠上運行<code class="highlighter-rouge">JSON-RPC</code>服務，但由於它位於本機上，所以基於<a href="https://en.wikipedia.org/wiki/Same-origin_policy">SOP</a>的緣故，我們無法直接從用戶的瀏覽器訪問它。在電子錢包中的
+<a href="https://github.com/spesmilo/electrum/issues/3374">這個文章</a>利用了<a href="https://en.wikipedia.org/wiki/Cross-origin_resource_sharing">CORS</a>標頭來通過本地主機上的JSON-RPC破解並控制用戶的電子錢包。</p>
+
+<p>這讓Geth的JSON-RPC看起來非常安全，因為它沒有返還任何的<code class="highlighter-rouge">CORS</code>標頭，但是後來<a href="https://github.com/cpacia">cpacia</a>則在<a href="https://github.com/spesmilo/electrum/issues/3374">回文</a>中下了個有關這個以太坊電子錢包的評論，而這正引發了我的新想法。以下是他當時的回文</p>
+
+<blockquote>
+  <p>只是禁用<code class="highlighter-rouge">CORS</code>仍然容易受到DNS重新綁定的攻擊。它應該需要被驗證。       〜cpacia</p>
+</blockquote>
+
+<p>我曾聽說過DNS重新綁定，但從來沒有試圖深入研究它。由於Geth的JSON-RPC也未經過身份驗證，它也很可能容易受到DNS重新綁定攻擊是嗎？</p>
+
+<p>還著實作的想法，我後來在<a href="https://searchsecurity.techtarget.com/definition/DNS-rebinding-attack">這裡</a>找到了些<a href="https://en.wikipedia.org/wiki/DNS_rebinding">DNS重新綁定</a>的基本定義。</p>
+
+<p>我嘗試開始研究DNS的重新綁定，但遇到個主要問題是所有的文章都是上古世紀的遺物。所以我在Bug Bounty的論壇上詢問了這個問題，幸運的，<a href="https://twitter.com/TheBoredEng">Luke Young</a>就將他2017年關於現今可行的DNS重新開發利用之<a href="https://www.youtube.com/watch?v=Q0JG_eKLcws">DEFCON神級演講</a>的連結發來給我。它還包括了一個<a href="https://github.com/linkedin/jaqen">自動化工具</a>，可以在大多數現存瀏覽器上實現DNS重新綁定。</p>
+
+<p><img src="https://i.imgur.com/TJQyWCe.png" alt="" />
+(嘿，起司，我知道你可以，但針對”現存”，請你躺回去。)</p>
+
+<p>了解愈多讓我愈好奇，但我並不想使用任何預製工具。所以我開始編寫我自己的DNS伺服器。Python有一個非常好的函式庫──<code class="highlighter-rouge">dnslib</code>。它可以為我處理大部分的東西。我還註冊了一個網域，並設置了一些<code class="highlighter-rouge">glue records</code>指向我的伺服器，並將它們用作<code class="highlighter-rouge">nameservers</code>。</p>
+
+<p>因為我想看看不同瀏覽器在遇到極低的TTL中的行為表現，所以我讓我的DNS服務器返還<code class="highlighter-rouge">TTLs &lt; 5</code>。而有趣的是，Chrome、Firefox和Safari都接受了這個等待60秒的DNS回應，儘管他標明TTL小於5。</p>
+
+<p>60秒並不是很長時間，應該還算在可接受範圍，而我想我可以讓用戶留在我的網頁上至少60秒。現在唯一剩下的就是實際嘗試。</p>
+
+<p>我用<code class="highlighter-rouge">--rpc</code>旗幟（當然是在testnet上）</p>
+
+<blockquote>
+  <p>geth -rpc -testnet</p>
+</blockquote>
+
+<p>現在是時候加點Javascript的料了，而這正是最難的部分。因為我不是一個好的web開發人員，每次使用JavaScript的處理某些行為時，我都很難將自己的思緒兜起來以JS實現。所以我跌跌撞撞的在3個小時內寫出了一個非常糟糕但有效果的JavaScript。而最初的結果是成功的。</p>
+
+<p>現在為了使它與geth一起成功運行，因為<code class="highlighter-rouge">SOP</code>，我必須在8545埠上運行我的web伺服器和網域。但是，如果我到時要受害者自主將Web連結封包發送給任何埠號為8545的人，但這方法感覺起來實在有點草率且不精緻。</p>
+
+<p>所以我想到的解決方案是使用<code class="highlighter-rouge">iframe</code>。我讓<code class="highlighter-rouge">apache</code>監聽8545和80，並為這兩個埠各設置一個虛擬主機。現在我可以建立<code class="highlighter-rouge">iframe</code>將對80的請求轉到8545埠並在其中隱藏的<code class="highlighter-rouge">iframe</code>運行所有的JavaScript。</p>
+
+<p>另一個問題是關於多個用戶，如果多個用戶同時訪問我的網域會怎麼樣？DNS伺服器肯定會因為我這種使用基於計數器的系統而感到困惑，並且因此無法區分各個用戶的請求。這問題讓我整個計畫撞牆了一段時間，直到我記起有<code class="highlighter-rouge">subdomains</code>這個東西。</p>
+
+<p>每當用戶訪問主域名時，我都可以用<code class="highlighter-rouge">iframe</code>為其添加一個隨機子域名用作標識。我知道我可能沒法很好地解釋它，但接下來我舉個例子好了。</p>
+
+<p>讓我們假設我的網域名稱為<code class="highlighter-rouge">attacker.com</code>而我的伺服器的IP是<code class="highlighter-rouge">87.87.87.87</code>這樣，那麼流程是：</p>
+
+<ul>
+  <li>受害者在瀏覽器中打開<code class="highlighter-rouge">attacker.com</code>。</li>
+  <li>首先，DNS請求attacker.com被發送到我的伺服器，並回應以真實IP <code class="highlighter-rouge">87.87.87.87</code></li>
+  <li>接下來，<code class="highlighter-rouge">attacker.com</code>加載到用戶的瀏覽器，然後創建一個隱藏的<code class="highlighter-rouge">iframe</code>與一個隨機子域<code class="highlighter-rouge">randomrsub.attacker.com:8545</code>，並將其附加到<code class="highlighter-rouge">&lt;body&gt;</code></li>
+  <li>現在，DNS請求被發送到我的伺服器的子網域<code class="highlighter-rouge">randomrsub.attacker.com</code>，並且DNS伺服器再次回應真實IP <code class="highlighter-rouge">87.87.87.87</code>。但是這一次，由於目的位於8545埠上，所以<code class="highlighter-rouge">apache</code>會使用不同的虛擬主機進行回應，進而開始DNS重新綁定攻擊。</li>
+  <li>在<code class="highlighter-rouge">randomrsub.attacker.com:8545</code>中的<code class="highlighter-rouge">Javascript</code>會等待60秒，然後發送一個<code class="highlighter-rouge">XmlHttpRequest</code>給<code class="highlighter-rouge">randomrr.attacker.com:8545/test</code>。</li>
+  <li>由於DNS緩存已過期，瀏覽器會再次解析DNS。這一次，我的伺服器會回應IP <code class="highlighter-rouge">127.0.0.1</code>。</li>
+  <li>現在請求實際上被發送給<code class="highlighter-rouge">127.0.0.1:8545/test</code>而不是我的伺服器，並且由於它來源仍被認知為<code class="highlighter-rouge">randomrr.attacker.com:8545</code>，所以我們仍能夠讀取回應。</li>
+  <li>由於我們每次都會生成一個隨機的子網域，因此我們現在甚至可以容納多個用戶，因為子網域可以執行其身份標識。</li>
+</ul>
+
+<p>為此，我還不得不優化JavaScript，以確保它在95％的時間內運作正常。我在真實的DNS查詢之前添加了一些虛假的DNS查詢，以便它在錯誤的時間不會用錯誤的IP進行響應。</p>
+
+<p>這基本上也可以用存儲型XSS來破解利用。只需將Script的src指向目標添加<code class="highlighter-rouge">iframe</code>和<code class="highlighter-rouge">TADA</code>即可！</p>
+
+<p>所以現在我們可以閱讀<code class="highlighter-rouge">JSON-RPC</code>服務的回應，這意味著我們可以讀取他們的以太幣地址，他們的存款數，並且如果他們的賬戶未鎖，他們可能可以竊取他們的以太幣。<code class="highlighter-rouge">JSON-RPC</code>的API有一個相當不錯的方法──<code class="highlighter-rouge">eth_sendTransaction</code>，它基本上可以用來從用戶帳戶發送<code class="highlighter-rouge">ethereum</code>。</p>
+
+<p>我在<a href="http://rebinddns.ml/">http://rebinddns.ml</a> (注意點擊) 上設置了概念驗證。如果你持續超過60秒，並且使用<code class="highlighter-rouge">JSON-RPC</code>運行Geth（或任何其他<code class="highlighter-rouge">ethereum</code>客戶端），您將看到一個<code class="highlighter-rouge">alert（）</code>，其中將包含您的<code class="highlighter-rouge">ethereum</code>地址及其餘額。</p>
+
+<p><img src="https://i.imgur.com/jsroMso.png" alt="" /></p>
+
+<p>PoC中使用的所有文件都可以在我的<a href="https://github.com/drigg3r/Ethereum-JSONRPC-DNS-Rebinding">Github</a>上找到。</p>
+
+<ul>
+  <li>min.js - 在8545埠上生成子網域及隱藏iframe的Js文件</li>
+  <li>main.js - 執行DNS重新綁定的Js文件</li>
+  <li>server.py - 用python編寫的DNS伺服器</li>
+</ul>
+
+<p>本篇主要概念是以注入的惡意轉址搭配DNS重綁定來攻擊以太坊的未驗證<code class="highlighter-rouge">JSON-RPC</code>服務，來取得攻擊成果。</p>
+
+<p>我已經證實Geth以太幣的C++客戶端和python客戶端都很脆弱。PoC已經在Firefox，Chrome和Safari上進行了測試。</p>
+
+<hr />
+
+<p>PS：這已經被報告給了<code class="highlighter-rouge">ethereum</code>基金會，但他們並不認為它是一個有效的漏洞。</p>
+
+<p>有任何問題，你都可以到我的twitter<a href="https://twitter.com/ret2got">@ret2got</a>上私訊我。</p>
+
+    </div>
+  </article>
+  <section class="section">
+    
+
+  </section>
+</div>
+
+    </section>
+    </main>
+    <footer class="footer">
+  <div class="container has-text-centered">
+    <div class="content">
+      Theme by
+      <a class="item" href="https://github.com/security-onigiri/security-onigiri">
+        <span class="icon">
+          <i class="fab fa-github"></i>
+        </span>
+        security-onigiri
+      </a>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>

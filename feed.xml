@@ -1,4 +1,87 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.1">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-05-08T13:59:02+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">你不算個資安專家，如果你只是…</title><link href="https://security-onigiri.github.io//2018/05/08/you-are-not-a-security-specialist-if-you.html" rel="alternate" type="text/html" title="你不算個資安專家，如果你只是..." /><published>2018-05-08T00:00:00+08:00</published><updated>2018-05-08T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/05/08/you-are-not-a-security-specialist-if-you</id><content type="html" xml:base="https://security-onigiri.github.io//2018/05/08/you-are-not-a-security-specialist-if-you.html">&lt;h1 id=&quot;well-you-are-not-a-security-specialist-if-you-&quot;&gt;Well, you are not a “Security Specialist” if you …&lt;/h1&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.7.3">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-05-13T03:45:35+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">DNS重綁 偷你以太幣</title><link href="https://security-onigiri.github.io//2018/05/13/dns.html" rel="alternate" type="text/html" title="DNS重綁 偷你以太幣" /><published>2018-05-13T00:00:00+08:00</published><updated>2018-05-13T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/05/13/dns</id><content type="html" xml:base="https://security-onigiri.github.io//2018/05/13/dns.html">&lt;p&gt;●&lt;a href=&quot;https://ret2got.wordpress.com/author/ret2got/&quot;&gt;ret2got&lt;/a&gt; ●未分類 ●2018年1月19日 ●約4分鐘可讀完&lt;/p&gt;
+
+&lt;p&gt;當我們針對如何利用&lt;a href=&quot;https://twitter.com/taviso/&quot;&gt;Tavis Ormandy&lt;/a&gt;發掘的&lt;strong&gt;在本地主機上的未驗證&lt;code class=&quot;highlighter-rouge&quot;&gt;JSON-RPC&lt;/code&gt;服務&lt;/strong&gt;開展討論時，我所想到的第一件事就是把這手法套在以太坊的客戶端（Geth，Mist與Parity）。&lt;/p&gt;
+
+&lt;p&gt;大多數以太坊客戶端都在本機上的8545埠上運行&lt;code class=&quot;highlighter-rouge&quot;&gt;JSON-RPC&lt;/code&gt;服務，但由於它位於本機上，所以基於&lt;a href=&quot;https://en.wikipedia.org/wiki/Same-origin_policy&quot;&gt;SOP&lt;/a&gt;的緣故，我們無法直接從用戶的瀏覽器訪問它。在電子錢包中的
+&lt;a href=&quot;https://github.com/spesmilo/electrum/issues/3374&quot;&gt;這個文章&lt;/a&gt;利用了&lt;a href=&quot;https://en.wikipedia.org/wiki/Cross-origin_resource_sharing&quot;&gt;CORS&lt;/a&gt;標頭來通過本地主機上的JSON-RPC破解並控制用戶的電子錢包。&lt;/p&gt;
+
+&lt;p&gt;這讓Geth的JSON-RPC看起來非常安全，因為它沒有返還任何的&lt;code class=&quot;highlighter-rouge&quot;&gt;CORS&lt;/code&gt;標頭，但是後來&lt;a href=&quot;https://github.com/cpacia&quot;&gt;cpacia&lt;/a&gt;則在&lt;a href=&quot;https://github.com/spesmilo/electrum/issues/3374&quot;&gt;回文&lt;/a&gt;中下了個有關這個以太坊電子錢包的評論，而這正引發了我的新想法。以下是他當時的回文&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;只是禁用&lt;code class=&quot;highlighter-rouge&quot;&gt;CORS&lt;/code&gt;仍然容易受到DNS重新綁定的攻擊。它應該需要被驗證。       〜cpacia&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;我曾聽說過DNS重新綁定，但從來沒有試圖深入研究它。由於Geth的JSON-RPC也未經過身份驗證，它也很可能容易受到DNS重新綁定攻擊是嗎？&lt;/p&gt;
+
+&lt;p&gt;還著實作的想法，我後來在&lt;a href=&quot;https://searchsecurity.techtarget.com/definition/DNS-rebinding-attack&quot;&gt;這裡&lt;/a&gt;找到了些&lt;a href=&quot;https://en.wikipedia.org/wiki/DNS_rebinding&quot;&gt;DNS重新綁定&lt;/a&gt;的基本定義。&lt;/p&gt;
+
+&lt;p&gt;我嘗試開始研究DNS的重新綁定，但遇到個主要問題是所有的文章都是上古世紀的遺物。所以我在Bug Bounty的論壇上詢問了這個問題，幸運的，&lt;a href=&quot;https://twitter.com/TheBoredEng&quot;&gt;Luke Young&lt;/a&gt;就將他2017年關於現今可行的DNS重新開發利用之&lt;a href=&quot;https://www.youtube.com/watch?v=Q0JG_eKLcws&quot;&gt;DEFCON神級演講&lt;/a&gt;的連結發來給我。它還包括了一個&lt;a href=&quot;https://github.com/linkedin/jaqen&quot;&gt;自動化工具&lt;/a&gt;，可以在大多數現存瀏覽器上實現DNS重新綁定。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/TJQyWCe.png&quot; alt=&quot;&quot; /&gt;
+(嘿，起司，我知道你可以，但針對”現存”，請你躺回去。)&lt;/p&gt;
+
+&lt;p&gt;了解愈多讓我愈好奇，但我並不想使用任何預製工具。所以我開始編寫我自己的DNS伺服器。Python有一個非常好的函式庫──&lt;code class=&quot;highlighter-rouge&quot;&gt;dnslib&lt;/code&gt;。它可以為我處理大部分的東西。我還註冊了一個網域，並設置了一些&lt;code class=&quot;highlighter-rouge&quot;&gt;glue records&lt;/code&gt;指向我的伺服器，並將它們用作&lt;code class=&quot;highlighter-rouge&quot;&gt;nameservers&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;因為我想看看不同瀏覽器在遇到極低的TTL中的行為表現，所以我讓我的DNS服務器返還&lt;code class=&quot;highlighter-rouge&quot;&gt;TTLs &amp;lt; 5&lt;/code&gt;。而有趣的是，Chrome、Firefox和Safari都接受了這個等待60秒的DNS回應，儘管他標明TTL小於5。&lt;/p&gt;
+
+&lt;p&gt;60秒並不是很長時間，應該還算在可接受範圍，而我想我可以讓用戶留在我的網頁上至少60秒。現在唯一剩下的就是實際嘗試。&lt;/p&gt;
+
+&lt;p&gt;我用&lt;code class=&quot;highlighter-rouge&quot;&gt;--rpc&lt;/code&gt;旗幟（當然是在testnet上）&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;geth -rpc -testnet&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;現在是時候加點Javascript的料了，而這正是最難的部分。因為我不是一個好的web開發人員，每次使用JavaScript的處理某些行為時，我都很難將自己的思緒兜起來以JS實現。所以我跌跌撞撞的在3個小時內寫出了一個非常糟糕但有效果的JavaScript。而最初的結果是成功的。&lt;/p&gt;
+
+&lt;p&gt;現在為了使它與geth一起成功運行，因為&lt;code class=&quot;highlighter-rouge&quot;&gt;SOP&lt;/code&gt;，我必須在8545埠上運行我的web伺服器和網域。但是，如果我到時要受害者自主將Web連結封包發送給任何埠號為8545的人，但這方法感覺起來實在有點草率且不精緻。&lt;/p&gt;
+
+&lt;p&gt;所以我想到的解決方案是使用&lt;code class=&quot;highlighter-rouge&quot;&gt;iframe&lt;/code&gt;。我讓&lt;code class=&quot;highlighter-rouge&quot;&gt;apache&lt;/code&gt;監聽8545和80，並為這兩個埠各設置一個虛擬主機。現在我可以建立&lt;code class=&quot;highlighter-rouge&quot;&gt;iframe&lt;/code&gt;將對80的請求轉到8545埠並在其中隱藏的&lt;code class=&quot;highlighter-rouge&quot;&gt;iframe&lt;/code&gt;運行所有的JavaScript。&lt;/p&gt;
+
+&lt;p&gt;另一個問題是關於多個用戶，如果多個用戶同時訪問我的網域會怎麼樣？DNS伺服器肯定會因為我這種使用基於計數器的系統而感到困惑，並且因此無法區分各個用戶的請求。這問題讓我整個計畫撞牆了一段時間，直到我記起有&lt;code class=&quot;highlighter-rouge&quot;&gt;subdomains&lt;/code&gt;這個東西。&lt;/p&gt;
+
+&lt;p&gt;每當用戶訪問主域名時，我都可以用&lt;code class=&quot;highlighter-rouge&quot;&gt;iframe&lt;/code&gt;為其添加一個隨機子域名用作標識。我知道我可能沒法很好地解釋它，但接下來我舉個例子好了。&lt;/p&gt;
+
+&lt;p&gt;讓我們假設我的網域名稱為&lt;code class=&quot;highlighter-rouge&quot;&gt;attacker.com&lt;/code&gt;而我的伺服器的IP是&lt;code class=&quot;highlighter-rouge&quot;&gt;87.87.87.87&lt;/code&gt;這樣，那麼流程是：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;受害者在瀏覽器中打開&lt;code class=&quot;highlighter-rouge&quot;&gt;attacker.com&lt;/code&gt;。&lt;/li&gt;
+  &lt;li&gt;首先，DNS請求attacker.com被發送到我的伺服器，並回應以真實IP &lt;code class=&quot;highlighter-rouge&quot;&gt;87.87.87.87&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;接下來，&lt;code class=&quot;highlighter-rouge&quot;&gt;attacker.com&lt;/code&gt;加載到用戶的瀏覽器，然後創建一個隱藏的&lt;code class=&quot;highlighter-rouge&quot;&gt;iframe&lt;/code&gt;與一個隨機子域&lt;code class=&quot;highlighter-rouge&quot;&gt;randomrsub.attacker.com:8545&lt;/code&gt;，並將其附加到&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;body&amp;gt;&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;現在，DNS請求被發送到我的伺服器的子網域&lt;code class=&quot;highlighter-rouge&quot;&gt;randomrsub.attacker.com&lt;/code&gt;，並且DNS伺服器再次回應真實IP &lt;code class=&quot;highlighter-rouge&quot;&gt;87.87.87.87&lt;/code&gt;。但是這一次，由於目的位於8545埠上，所以&lt;code class=&quot;highlighter-rouge&quot;&gt;apache&lt;/code&gt;會使用不同的虛擬主機進行回應，進而開始DNS重新綁定攻擊。&lt;/li&gt;
+  &lt;li&gt;在&lt;code class=&quot;highlighter-rouge&quot;&gt;randomrsub.attacker.com:8545&lt;/code&gt;中的&lt;code class=&quot;highlighter-rouge&quot;&gt;Javascript&lt;/code&gt;會等待60秒，然後發送一個&lt;code class=&quot;highlighter-rouge&quot;&gt;XmlHttpRequest&lt;/code&gt;給&lt;code class=&quot;highlighter-rouge&quot;&gt;randomrr.attacker.com:8545/test&lt;/code&gt;。&lt;/li&gt;
+  &lt;li&gt;由於DNS緩存已過期，瀏覽器會再次解析DNS。這一次，我的伺服器會回應IP &lt;code class=&quot;highlighter-rouge&quot;&gt;127.0.0.1&lt;/code&gt;。&lt;/li&gt;
+  &lt;li&gt;現在請求實際上被發送給&lt;code class=&quot;highlighter-rouge&quot;&gt;127.0.0.1:8545/test&lt;/code&gt;而不是我的伺服器，並且由於它來源仍被認知為&lt;code class=&quot;highlighter-rouge&quot;&gt;randomrr.attacker.com:8545&lt;/code&gt;，所以我們仍能夠讀取回應。&lt;/li&gt;
+  &lt;li&gt;由於我們每次都會生成一個隨機的子網域，因此我們現在甚至可以容納多個用戶，因為子網域可以執行其身份標識。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;為此，我還不得不優化JavaScript，以確保它在95％的時間內運作正常。我在真實的DNS查詢之前添加了一些虛假的DNS查詢，以便它在錯誤的時間不會用錯誤的IP進行響應。&lt;/p&gt;
+
+&lt;p&gt;這基本上也可以用存儲型XSS來破解利用。只需將Script的src指向目標添加&lt;code class=&quot;highlighter-rouge&quot;&gt;iframe&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;TADA&lt;/code&gt;即可！&lt;/p&gt;
+
+&lt;p&gt;所以現在我們可以閱讀&lt;code class=&quot;highlighter-rouge&quot;&gt;JSON-RPC&lt;/code&gt;服務的回應，這意味著我們可以讀取他們的以太幣地址，他們的存款數，並且如果他們的賬戶未鎖，他們可能可以竊取他們的以太幣。&lt;code class=&quot;highlighter-rouge&quot;&gt;JSON-RPC&lt;/code&gt;的API有一個相當不錯的方法──&lt;code class=&quot;highlighter-rouge&quot;&gt;eth_sendTransaction&lt;/code&gt;，它基本上可以用來從用戶帳戶發送&lt;code class=&quot;highlighter-rouge&quot;&gt;ethereum&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;我在&lt;a href=&quot;http://rebinddns.ml/&quot;&gt;http://rebinddns.ml&lt;/a&gt; (注意點擊) 上設置了概念驗證。如果你持續超過60秒，並且使用&lt;code class=&quot;highlighter-rouge&quot;&gt;JSON-RPC&lt;/code&gt;運行Geth（或任何其他&lt;code class=&quot;highlighter-rouge&quot;&gt;ethereum&lt;/code&gt;客戶端），您將看到一個&lt;code class=&quot;highlighter-rouge&quot;&gt;alert（）&lt;/code&gt;，其中將包含您的&lt;code class=&quot;highlighter-rouge&quot;&gt;ethereum&lt;/code&gt;地址及其餘額。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/jsroMso.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;PoC中使用的所有文件都可以在我的&lt;a href=&quot;https://github.com/drigg3r/Ethereum-JSONRPC-DNS-Rebinding&quot;&gt;Github&lt;/a&gt;上找到。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;min.js - 在8545埠上生成子網域及隱藏iframe的Js文件&lt;/li&gt;
+  &lt;li&gt;main.js - 執行DNS重新綁定的Js文件&lt;/li&gt;
+  &lt;li&gt;server.py - 用python編寫的DNS伺服器&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;本篇主要概念是以注入的惡意轉址搭配DNS重綁定來攻擊以太坊的未驗證&lt;code class=&quot;highlighter-rouge&quot;&gt;JSON-RPC&lt;/code&gt;服務，來取得攻擊成果。&lt;/p&gt;
+
+&lt;p&gt;我已經證實Geth以太幣的C++客戶端和python客戶端都很脆弱。PoC已經在Firefox，Chrome和Safari上進行了測試。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;PS：這已經被報告給了&lt;code class=&quot;highlighter-rouge&quot;&gt;ethereum&lt;/code&gt;基金會，但他們並不認為它是一個有效的漏洞。&lt;/p&gt;
+
+&lt;p&gt;有任何問題，你都可以到我的twitter&lt;a href=&quot;https://twitter.com/ret2got&quot;&gt;@ret2got&lt;/a&gt;上私訊我。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="Web" /><category term="Blockchain" /><summary type="html">●ret2got ●未分類 ●2018年1月19日 ●約4分鐘可讀完 當我們針對如何利用Tavis Ormandy發掘的在本地主機上的未驗證JSON-RPC服務開展討論時，我所想到的第一件事就是把這手法套在以太坊的客戶端（Geth，Mist與Parity）。</summary></entry><entry><title type="html">你不算個資安專家，如果你只是…</title><link href="https://security-onigiri.github.io//2018/05/08/you-are-not-a-security-specialist-if-you.html" rel="alternate" type="text/html" title="你不算個資安專家，如果你只是..." /><published>2018-05-08T00:00:00+08:00</published><updated>2018-05-08T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/05/08/you-are-not-a-security-specialist-if-you</id><content type="html" xml:base="https://security-onigiri.github.io//2018/05/08/you-are-not-a-security-specialist-if-you.html">&lt;h1 id=&quot;well-you-are-not-a-security-specialist-if-you-&quot;&gt;Well, you are not a “Security Specialist” if you …&lt;/h1&gt;
 
 &lt;p&gt;Starting this thread is easy …&lt;/p&gt;
 
@@ -2116,58 +2199,4 @@ const { JSDOM } = require(‘jsdom’);&lt;/p&gt;
   &lt;li&gt;&lt;a href=&quot;http://www.xplico.org/ http://tools.kali.org/information-gathering/xplico&quot;&gt;Xplico&lt;/a&gt;&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;https://github.com/sleuthkit/scalpel&quot;&gt;Scalpel&lt;/a&gt;&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;http://www.secdev.org/projects/scapy/&quot;&gt;Scapy&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;</content><author><name>JohnThunder</name></author><category term="forensics" /><category term="network analysis" /><summary type="html">Blue Team: 提取封包內容-基礎篇</summary></entry><entry><title type="html">使用Burp Suite的Collaborator查找.Onion隱藏服務的真實IP地址</title><link href="https://security-onigiri.github.io//2018/01/29/burp-suitecollaboratoronionip.html" rel="alternate" type="text/html" title="使用Burp Suite的Collaborator查找.Onion隱藏服務的真實IP地址" /><published>2018-01-29T00:00:00+08:00</published><updated>2018-01-29T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/01/29/burp-suitecollaboratoronionip</id><content type="html" xml:base="https://security-onigiri.github.io//2018/01/29/burp-suitecollaboratoronionip.html">&lt;p&gt;發佈於2017年11月23日&lt;/p&gt;
-
-&lt;p&gt;在屬於感恩節的這一天，我要寫一些與生活息息相關並令人喜愛的東西：填充。我現在可不是在跟你聊今天下午茶的美味麵包還是啥的，我正在說的是將Payloads填充到網站上來尋找漏洞這件事。&lt;/p&gt;
-
-&lt;p&gt;我們總是喜歡把奇怪的東西餵進網站。例如我們邊期待能達成SQL injection邊把我們的髒東西： &lt;code class=&quot;highlighter-rouge&quot;&gt;' or 1-1;&lt;/code&gt; 餵給網站，我們塞了一些 &lt;code class=&quot;highlighter-rouge&quot;&gt;; cat / etc / passwd&lt;/code&gt; 希望取得Command injection，我們把 &lt;code class=&quot;highlighter-rouge&quot;&gt;alert(“BEEP!!!”)&lt;/code&gt; 當成萬能鑰匙插入每個鎖孔希望能XXS，我們甚至走火入魔填入我們的信用卡號碼，然後幻想它會有如&lt;a href=&quot;https://www.youtube.com/watch?v=rQ6LC-olw9Q&quot;&gt;1967年星際爭霸戰The Trouble with Tribbles&lt;/a&gt;情節中的病毒自動蠶食資源充值。&lt;/p&gt;
-
-&lt;p&gt;有時我們會立即收到來自我們Payload的即時反饋，並使我們可以在幾秒鐘內確認一個漏洞的存在。例如我們輸入 &lt;code class=&quot;highlighter-rouge&quot;&gt;' or 1-1;&lt;/code&gt; 並以此繞過登錄畫面，我就可以開啟我的SQL injection花式技巧工具箱對它予取予求。但問題來了，當你注入Payload的地方回應總是高延遲該如何是好？那麼如果我現在對一個網站注入的Payload並不馬上執行，需要等到某個管理員在星期一上午查看日誌才發動該怎麼辦？如果我們希望能夠檢測Payload是否正常工作，那麼我們就需要建立一個每天24小時持續性的監聽系統。&lt;/p&gt;
-
-&lt;p&gt;Burp Suite在2015年推出“Burp Collaborator”讓這件事變得更加容易。被免費打包同捆在Burp Suite Professional一起提供的“Burp Collaborator”是一個伺服器，它每年365天、每天24小時監聽您的Payload並進行後續反饋。(如果你沒有間歇性停電問題且有放好乖乖的話)&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/HCAY8ot.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;截圖如上所示，我可以點擊“copy to clipboard”來生成一個我可以在任何Payload中使用的唯一的URL。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/lndZ8SJ.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;如果任何人或任何東西查看這個URL或訪問它，我會在我的Burp Suite Collaborator客戶端獲得一個通知。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/LsrrUek.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;這是功能是如此令人驚艷且難以置信的強大。現在我們已經有系統來補完Payload，並且無論我們處理多長時間的延遲，都能聽取它們的反饋。正如早些時候官方的Burp Suite twitter feed所說的，如果你沒有進行&lt;a href=&quot;http://blog.portswigger.net/2017/07/oast-out-of-band-application-security.html&quot;&gt;帶外應用安全測試（OAST）&lt;/a&gt;，那麼你就做錯了。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/5AShOCQ.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;好的，這個真的非常簡單，也讓我們的更加興奮期待下一步，&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/qhrynr9.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;您覺得我們應該從哪裡開始亂塞我們新的Payload？如果你興奮地說“無所不在!!!!”，那麼我喜歡您的風格，並完全同意這個意見！你知道嗎？一位名叫James Kettle的大神也同意了這個觀點，並在今年早些時候寫了一個叫做 &lt;a href=&quot;https://github.com/PortSwigger/collaborator-everywhere&quot;&gt;“Collaborator Everywhere”&lt;/a&gt; 的Burp Suite Professional插件。作者還寫了一篇名為&lt;a href=&quot;http://blog.portswigger.net/2017/07/cracking-lens-targeting-https-hidden.html&quot;&gt;“Cracking the Lens: Targeting HTTP’s Hidden Attack-Surface”&lt;/a&gt;的精彩Blog貼文，他在這篇文章裡向全世界介紹了他的插件。我的朋友Kat在Blackhat舉辦期間發給我這個連結，而我當時就坐在拉斯維加斯的一個戶外酒吧裡像個怪人一樣用我的手機把它從頭讀到尾，它好到我媽問我為何跪在電腦前，沒在唬的。&lt;/p&gt;
-
-&lt;p&gt;Collaborator Everywhere希望通過Burp Suite自動將這些Collaborator payloads注入到我們所進行的網路瀏覽中來幫助我們識別後端系統和進程。而它究竟做了什麼？看看我剛剛瀏覽我的Blog時它自動插入的一些Header。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/SxIX7Wz.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;它會訪問一個特定的網站，所以我會從我的一個payload injection獲得了相應的DNS查詢：&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/mzTBKHO.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;James還釋出了一個&lt;a href=&quot;https://www.youtube.com/watch?v=zP4b3pw94s0&quot;&gt;黑帽演講(你可以在這裡看到)&lt;/a&gt;，他談論了所有他使用這些技術所完成的偉業。在觀看演講的過程中，我認為這種技術可能可被用來識別TOR .onion所隱藏的服務真實IP地址。&lt;/p&gt;
-
-&lt;p&gt;我啟動了我的TOR瀏覽器，並為其配置Burp Suite連接。然後我瀏覽多個.onion隱藏服務，看看他們中的任何一個會給我一個Collaborator的pingback。最後，在我瀏覽到第二十個網站時，它成功了 :P&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/0TwVi8y.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;我現在有一個與.onion隱藏服務相關聯的伺服器的真正IP地址，因為它查找了它被提交的含餌Header。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ahfdcGO.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;我鼓勵您在您擁有或合法擁有測試權限的網站上使用這些技術。他們易於使用、有趣且非常有效。&lt;/p&gt;
-
-&lt;p&gt;11/24/2017更新：&lt;/p&gt;
-
-&lt;p&gt;我發布的這條推文頗受歡迎，並引發了包括&lt;a href=&quot;https://twitter.com/cchuatl&quot;&gt;@cchuatl&lt;/a&gt;，&lt;a href=&quot;https://twitter.com/albinowax&quot;&gt;@albinowax&lt;/a&gt;和&lt;a href=&quot;https://twitter.com/einaros&quot;&gt;@einaros&lt;/a&gt;在內的好幾個人私訊我有趣的後續意見。該流程的關鍵之一即是該pingback來自很可能非常靠近主機伺服器DNS解析伺服器，但並不一定如此。而這個想法始終存在我的腦海中，這也就是為什麼我使用“關聯”而不是“擁有”的說法，但這方法絕對能夠增加隱藏地址的清晰度。&lt;/p&gt;
-
-&lt;p&gt;更多像我此次提出的反饋正是使資安社群成為更為美好聚集地的一部分。我的目標是不公開任何人的.onion服務，這就是為什麼我清理了所有的屏幕截圖，但在上述截圖情況應非實際位址，但根據網站的內容以及解析器分析的IP地址與我預計的託管位置其實是內聯的，所以我相信它非常接近主機伺服器了。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="forensics" /><summary type="html">發佈於2017年11月23日</summary></entry></feed>
+&lt;/ul&gt;</content><author><name>JohnThunder</name></author><category term="forensics" /><category term="network analysis" /><summary type="html">Blue Team: 提取封包內容-基礎篇</summary></entry></feed>
