@@ -1,4 +1,71 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.7.3">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-05-13T03:45:35+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">DNS重綁 偷你以太幣</title><link href="https://security-onigiri.github.io//2018/05/13/dns.html" rel="alternate" type="text/html" title="DNS重綁 偷你以太幣" /><published>2018-05-13T00:00:00+08:00</published><updated>2018-05-13T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/05/13/dns</id><content type="html" xml:base="https://security-onigiri.github.io//2018/05/13/dns.html">&lt;p&gt;●&lt;a href=&quot;https://ret2got.wordpress.com/author/ret2got/&quot;&gt;ret2got&lt;/a&gt; ●未分類 ●2018年1月19日 ●約4分鐘可讀完&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.7.3">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-05-15T11:32:53+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">用偵查來PWN解後端控制台</title><link href="https://security-onigiri.github.io//2018/05/15/pwn.html" rel="alternate" type="text/html" title="用偵查來PWN解後端控制台" /><published>2018-05-15T00:00:00+08:00</published><updated>2018-05-15T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/05/15/pwn</id><content type="html" xml:base="https://security-onigiri.github.io//2018/05/15/pwn.html">&lt;p&gt;偵察是滲透測試中有趣且最重要的部分。良好的使用偵察，可以有效的查找到 API 端口、相關敏感文件或文件夾、鮮嫩多汁的子網域 (編註:原文如此) 等等。在我最近一次的研究中發現了一個由於缺少授權管理甚至敏感文件還設為公開的目標，這使我能夠輕易進入其管理控制台。&lt;/p&gt;
+
+&lt;p&gt;讓我首先從靜態分析 iOS 應用程式開始。在瀏覽&lt;a href=&quot;https://developer.apple.com/library/content/documentation/General/Reference/InfoPlistKeyReference/Articles/iPhoneOSKeys.html#//apple_ref/doc/uid/TP40009252-SW1&quot;&gt;Info.plist&lt;/a&gt;時，我們可以看到裡面有一個寫死的 URL。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;[nishaanthguna:~/pentest]$ cat Info.plist | grep -i &quot;http&quot;
+&amp;lt;!DOCTYPE plist PUBLIC .. &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&amp;gt;
+&amp;lt;string&amp;gt;https://admin.company.com/xyz/api&amp;lt;/string&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;以此為憑依繼續追查這個URL下去，我們得到一個連結到 Swagger UI 的頁面。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/gxdQJhr.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;然後我們粗略的翻一翻&lt;a href=&quot;https://swagger.io/swagger-ui/&quot;&gt;官方文件&lt;/a&gt;，我們可以看到 Swagger UI 是個用於可視化處理和與 API 互動的資源，它會自動根據載明之規範產生交互。以下是在檢查上一個 UI 頁面時找到的 URL。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/mfUxtoy.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;這裡令人奇怪的是，不僅只在於它行動裝置應用程序的 API 呼叫方式，它甚至還有管理員可以用來管理用戶、管理廣播的內容、管理自定義應用程式使用的聊天機器人端口等等。深入研究額外端口的資訊後，我啟動了 Burp 來查看網路流量。起初，我的想法是用 Swagger UI 中的管理端口來替換行動裝置應用程序的端口，用這方法來檢查 Swagger UI 中的管理端口該程式是否有針對這點設置合適的權限管理來區分普通用戶和管理員帳戶。&lt;/p&gt;
+
+&lt;p&gt;從“管理員帳戶”API文檔中，我們可以看到有一個端口使用&lt;code class=&quot;highlighter-rouge&quot;&gt;/admin/users/count&lt;/code&gt;打印出管理員用戶數。這看起來很有&lt;strong&gt;前途&lt;/strong&gt;，因為它不需要任何請求主體(Request body)，而且非常簡單。&lt;/p&gt;
+
+&lt;p&gt;以普通用戶身份登入到行動裝置應用程序，我將其中一個 API 呼叫從&lt;code class=&quot;highlighter-rouge&quot;&gt;/xyz /api/users/account/preferences&lt;/code&gt;更換為&lt;code class=&quot;highlighter-rouge&quot;&gt;/xyz/api/admin/users/count&lt;/code&gt;並轉發請求。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/dLiDWpv.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;成功了！
+這意味著這伺服器沒有任何授權管理。基本上，我們可以向包括&lt;code class=&quot;highlighter-rouge&quot;&gt;/admin&lt;/code&gt;、&lt;code class=&quot;highlighter-rouge&quot;&gt;/chatbot&lt;/code&gt;、&lt;code class=&quot;highlighter-rouge&quot;&gt;/moderate&lt;/code&gt;的任何 API 端口發出任何請求，因為我們知道請求主體(Request body) 的結構和相關的標頭(Header)。現在讓我們嘗試使用 Swagger UI 的端口進行更多暴力窮舉並擴大這個漏洞利用。&lt;/p&gt;
+
+&lt;p&gt;從 Swagger UI 附件中，我們可以看到有另一個端口藉由向&lt;code class=&quot;highlighter-rouge&quot;&gt;/admin/users/{id}&lt;/code&gt;發送請求來查找有關管理員帳戶的訊息。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;GET /xyz/api/admin/users/1 HTTP/1.1
+Host: https://admin.company.com
+User Agent: MS-RELEASE/1.0.32 (iPhone; iOS 10.1.1; Scale/2.00)
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkdldCB5b3VyIG93biB0b2tlbiEiLCJpYXQiOjE1MTYyMzkwMjJ9.12neWKBPl2q0alhnEiJ_g018_0YHtZMaFzCjsWs0VE
+
+{
+  &quot;ID&quot;: 1,
+  &quot;Name&quot;: &quot;Admin User&quot;,
+  &quot;Username&quot;: &quot;XYZ&quot;,
+  &quot;EMail&quot;: &quot;dev@nonexistingdomain.com&quot;,
+  &quot;Roles&quot;: [
+    {
+      &quot;ID&quot;: 1,
+      &quot;Name&quot;: &quot;Admin&quot;,
+      &quot;Menu&quot;:[
+        {
+          &quot;Path&quot;: &quot;#/admin&quot;,
+          &quot;Icon&quot;: &quot;fa-user&quot;,
+          &quot;Order&quot;: &quot;1&quot;,
+          &quot;Roles&quot;: &quot;READ,WRITE&quot;,
+        }
+      ]
+    }  
+}     
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;真的很棒！使用 Burp 的 Intruder 功能，我們可以通過暴力窮舉&lt;code class=&quot;highlighter-rouge&quot;&gt;{id}&lt;/code&gt;參數來取得所有(共8位)管理員的用戶名與電子郵件。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/iluoWSf.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;現在我們已取得管理員帳戶名可以嘗試登入。讓我們使用從&lt;a href=&quot;https://github.com/danielmiessler/SecLists/tree/master/Passwords/Common-Credentials&quot;&gt;Seclists&lt;/a&gt;中獲取通用密碼列表在觸動警報之前運行一個快速暴力破解程式。&lt;/p&gt;
+
+&lt;p&gt;幸運的是，其中一位管理員帳戶的密碼強度較弱，並且該應用程式在登入頁面中沒有任何速率限制。通過取得的管理員權限，我們可以做任何事情，從添加或刪除用戶，修改移動應用程序中顯示的內容，向終端用戶發送通知以及做許多更多很多有趣的事情。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/jZQDhGv.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;將各個思路組合在一起，以便在 Web應用程式上取得管理員權限實在十分有趣。我還在&lt;a href=&quot;https://secdevops.ai/ios-static-analysis-and-recon-c611eaa6d108&quot;&gt;SecDevOps&lt;/a&gt;上撰寫了關於iOS應用程式靜態分析的&lt;a href=&quot;https://secdevops.ai/ios-static-analysis-and-recon-c611eaa6d108&quot;&gt;入門&lt;/a&gt;。懇請撥冗參閱 ;）&lt;/p&gt;
+
+&lt;p&gt;不要猶豫，歡迎發表並回饋些意見或評論。如果願意的話，你也可以在&lt;a href=&quot;https://twitter.com/67616d654661636&quot;&gt;Twitter&lt;/a&gt;上直接私訊我。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="Web" /><category term="API" /><category term="Mobile APP" /><summary type="html">偵察是滲透測試中有趣且最重要的部分。良好的使用偵察，可以有效的查找到 API 端口、相關敏感文件或文件夾、鮮嫩多汁的子網域 (編註:原文如此) 等等。在我最近一次的研究中發現了一個由於缺少授權管理甚至敏感文件還設為公開的目標，這使我能夠輕易進入其管理控制台。</summary></entry><entry><title type="html">DNS重綁 偷你以太幣</title><link href="https://security-onigiri.github.io//2018/05/13/dns.html" rel="alternate" type="text/html" title="DNS重綁 偷你以太幣" /><published>2018-05-13T00:00:00+08:00</published><updated>2018-05-13T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/05/13/dns</id><content type="html" xml:base="https://security-onigiri.github.io//2018/05/13/dns.html">&lt;p&gt;●&lt;a href=&quot;https://ret2got.wordpress.com/author/ret2got/&quot;&gt;ret2got&lt;/a&gt; ●未分類 ●2018年1月19日 ●約4分鐘可讀完&lt;/p&gt;
 
 &lt;p&gt;當我們針對如何利用&lt;a href=&quot;https://twitter.com/taviso/&quot;&gt;Tavis Ormandy&lt;/a&gt;發掘的&lt;strong&gt;在本地主機上的未驗證&lt;code class=&quot;highlighter-rouge&quot;&gt;JSON-RPC&lt;/code&gt;服務&lt;/strong&gt;開展討論時，我所想到的第一件事就是把這手法套在以太坊的客戶端（Geth，Mist與Parity）。&lt;/p&gt;
 
@@ -2097,106 +2164,4 @@ const { JSDOM } = require(‘jsdom’);&lt;/p&gt;
 &lt;p&gt;挖漏洞並不是唯一的途徑，開發安全工具，做防禦性的研究，同樣是很有價值的。&lt;/p&gt;
 
 &lt;p&gt;還有什麼是我需要知道的?
-安全研究員的人生可能並不像你想像的那麼光鮮亮麗，為了成為一個享負盛名的大神，你需要在電腦面前坐到天荒地老。 這是一份有挑戰性的工作，並且需要花費相當大的精力。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="Misc" /><summary type="html">Tuesday，February 6，2018</summary></entry><entry><title type="html">Blue Team: 提取封包內容-基礎篇</title><link href="https://security-onigiri.github.io//2018/02/20/Blue-Team-%E6%8F%90%E5%8F%96%E5%B0%81%E5%8C%85%E5%85%A7%E5%AE%B9-%E5%9F%BA%E7%A4%8E%E7%AF%87.html" rel="alternate" type="text/html" title="Blue Team: 提取封包內容-基礎篇" /><published>2018-02-20T00:00:00+08:00</published><updated>2018-02-20T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/02/20/Blue%20Team-%E6%8F%90%E5%8F%96%E5%B0%81%E5%8C%85%E5%85%A7%E5%AE%B9-%E5%9F%BA%E7%A4%8E%E7%AF%87</id><content type="html" xml:base="https://security-onigiri.github.io//2018/02/20/Blue-Team-%E6%8F%90%E5%8F%96%E5%B0%81%E5%8C%85%E5%85%A7%E5%AE%B9-%E5%9F%BA%E7%A4%8E%E7%AF%87.html">&lt;h1 id=&quot;blue-team-提取封包內容-基礎篇&quot;&gt;Blue Team: 提取封包內容-基礎篇&lt;/h1&gt;
-
-&lt;p&gt;這篇會提到如何從 PCAP 萃取資料，不論是普通的網路流量分析或是惡意程式的 Malware 分析都會需要從流量中提取資料。&lt;/p&gt;
-
-&lt;h2 id=&quot;wireshark&quot;&gt;Wireshark&lt;/h2&gt;
-&lt;p&gt;Wireshark 是你最好的選擇當你需要分析小型 PCAP 檔案，但當檔案大小超過 800MB 執行效能會下滑。&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;開啟 Wireshark，擷取流量並最小化&lt;/li&gt;
-  &lt;li&gt;用瀏覽器開始 http://www.eicar.org/85-0-Download.html&lt;/li&gt;
-  &lt;li&gt;下載 eicar 的樣本&lt;/li&gt;
-  &lt;li&gt;當下載完成後停止擷取流量&lt;/li&gt;
-  &lt;li&gt;用 http 當作過濾條件在 Wireshark的 display filter bar. 參考連結: &lt;a href=&quot;https://biot.com/capstats/bpf.html&quot;&gt;BPF Filter&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;輸出 HTTP 檔案 [File &amp;gt; Export Objects &amp;gt; HTTP].&lt;/li&gt;
-  &lt;li&gt;選取、輸出 eicar 的檔案&lt;/li&gt;
-  &lt;li&gt;存檔 Wireshark PCAP. [File &amp;gt; Save As &amp;gt; test_eicar.pcap]&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://imgur.com/gNHMVEL.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;bro-ids&quot;&gt;Bro IDS&lt;/h2&gt;
-
-&lt;p&gt;使用 Bro IDS
-稍微進階一點的工具，當你需要調查/分析比較大的 PCAP 檔案時十分方便而且容易自動化。並且 Bro 支援 PCAP 檔案以外還有即時網路流量分析。&lt;/p&gt;
-
-&lt;p&gt;1.) Install Bro IDS (defaults)[/usr/local/bro]&lt;/p&gt;
-
-&lt;p&gt;我個人建議使用 Docker 幫助你更快的完成環境設定 https://github.com/blacktop/docker-bro 
-但是提取方面的腳本並沒有在這個 Github 專案裡面，你會需要額外設置。&lt;/p&gt;
-
-&lt;p&gt;2.) 在 local.bro 檔案寫入啟用 ‘extract all’  [/usr/local/bro/share/bro/local.bro]&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;@load frameworks/files/extract-all-files
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;3.) 打開local.bro，修改預設提取檔案的最大上限預設值是 25MB。&lt;/p&gt;
-
-&lt;p&gt;在我們的實驗中包含的檔案都較小，但還是建議修改預設的上限。如果你在生產、實際環境使用 Bro IDS，你應該要好好的保存、維護你的資料。&lt;/p&gt;
-
-&lt;p&gt;[/usr/local/bro/share/bro/local.bro]&lt;/p&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redef FileExtract::default_limit = 1000000000;&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;1000000000 = 1 GByte&lt;/p&gt;
-
-&lt;p&gt;4.) 確認你將你的 config 部署到 Local Bro上。
-&lt;code class=&quot;highlighter-rouge&quot;&gt;broctl deploy&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;5.) 用 Bro 分析我們在之前錄製的 PCAP 檔案，Bro 會在當前資料夾解開 PCAP 內容。&lt;/p&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;bro -Cr test_eicar.pcap local.bro &quot;Site::local_nets += { 10.0.0.0/24 }&quot;&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/hoMsRVU.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;打開 [files.log] 去辨識出哪個是 eicar 的檔案，得到 unique ID 後把資料解出來。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/EE1BXVa.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Bro extraction的預設值: https://www.bro.org/sphinx/scripts/base/files/extract/main.bro.html&lt;/p&gt;
-
-&lt;h2 id=&quot;用雲端幫你分析&quot;&gt;用雲端幫你分析&lt;/h2&gt;
-
-&lt;p&gt;最近的新流行的方式，但其實後端也是用 BRO 或是 TShark 分析再幫你加上漂亮的圖表。&lt;/p&gt;
-&lt;center&gt;&lt;img src=&quot;https://i.imgur.com/gAmDYtG.png&quot; alt=&quot;&quot; class=&quot;&quot; /&gt;&lt;/center&gt;
-
-&lt;p&gt;&lt;strong&gt;請謹慎思考&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;當你要用這些服務之前你的封包檔案會被服務提供者取得，也就是你的封包內容也就會在網路被留存了。&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://www.networktotal.com&lt;/li&gt;
-  &lt;li&gt;https://www.packettotal.com - T&amp;amp;Cs&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;下圖是 PacketTotal 的提取的範例圖&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/fb4FvPH.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;network-miner&quot;&gt;Network Miner&lt;/h2&gt;
-&lt;p&gt;NETRESEC 開發的 Windows GUI 有不錯效能的 PCAP 分析工具&lt;/p&gt;
-
-&lt;p&gt;非常適合快速圖片分析當你有大量圖片在你的 PCAP 中。請注意的是，免費板只有 0.84Mbits/s 所以會需要一點時間當你要分析較大的 PCAP 的時候。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/y1TXHxj.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Network Miner 會自動的提取、輸出檔案並用 IP 作為資料夾名稱。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/phxhLd2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;不論是哪個工具，都有各自的優勢與劣勢。
-有些不易於自動化或是有些是用於臨時快速分析的，最好從這些裡面熟悉幾項。
-如果你是高手/重度使用者，個人建議是使用 Python/Scapy 應該會是最合適的。&lt;/p&gt;
-
-&lt;h2 id=&quot;延伸閱讀&quot;&gt;延伸閱讀&lt;/h2&gt;
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://www.sans.org/reading-room/whitepapers/forensics/extracting-files-network-packet-captures-36562&quot;&gt;SANS Reading Room&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://github.com/hosom/bro-file-extraction&quot;&gt;Bro IDS Extraction Scripts&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://github.com/caesar0301/awesome-pcaptools&quot;&gt;Awesome-pcaptools list&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;http://tools.kali.org/forensics/foremost&quot;&gt;Foremost&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;http://www.xplico.org/ http://tools.kali.org/information-gathering/xplico&quot;&gt;Xplico&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://github.com/sleuthkit/scalpel&quot;&gt;Scalpel&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;http://www.secdev.org/projects/scapy/&quot;&gt;Scapy&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;</content><author><name>JohnThunder</name></author><category term="forensics" /><category term="network analysis" /><summary type="html">Blue Team: 提取封包內容-基礎篇</summary></entry></feed>
+安全研究員的人生可能並不像你想像的那麼光鮮亮麗，為了成為一個享負盛名的大神，你需要在電腦面前坐到天荒地老。 這是一份有挑戰性的工作，並且需要花費相當大的精力。&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="Misc" /><summary type="html">Tuesday，February 6，2018</summary></entry></feed>
