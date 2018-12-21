@@ -1,11 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-12-09T23:06:46+08:00</updated><id>https://security-onigiri.github.io//feed.xml</id><entry><title type="html">如何當個貓ware研究者</title><link href="https://security-onigiri.github.io//2018/12/09/ware.html" rel="alternate" type="text/html" title="如何當個貓ware研究者" /><published>2018-12-09T00:00:00+08:00</published><updated>2018-12-09T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/12/09/ware</id><content type="html" xml:base="https://security-onigiri.github.io//2018/12/09/ware.html">&lt;h1 id=&quot;how-to-become-and-remain-a-malware-researcher&quot;&gt;How to Become (and Remain) a Malware Researcher&lt;/h1&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-12-22T00:38:59+08:00</updated><id>https://security-onigiri.github.io//feed.xml</id><entry><title type="html">如何當個貓ware研究者</title><link href="https://security-onigiri.github.io//2018/12/09/ware.html" rel="alternate" type="text/html" title="如何當個貓ware研究者" /><published>2018-12-09T00:00:00+08:00</published><updated>2018-12-09T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/12/09/ware</id><content type="html" xml:base="https://security-onigiri.github.io//2018/12/09/ware.html">&lt;h1 id=&quot;how-to-become-and-remain-a-malware-researcher&quot;&gt;How to Become (and Remain) a Malware Researcher&lt;/h1&gt;
+
 &lt;p&gt;I am writing this post as requested by Peerlyst. In this post, I will present my unique take on both becoming and remaining a Malware Researcher.&lt;/p&gt;
 
 &lt;blockquote&gt;
   &lt;p&gt;我應 Peerlyst 要求寫這篇文章，內容將包含如何成為並持續當一個惡意軟體研究員。&lt;/p&gt;
 &lt;/blockquote&gt;
 
-&lt;h3 id=&quot;the-two-most-important-ingredients--兩個最關鍵的要素&quot;&gt;The Two Most Important Ingredients / 兩個最關鍵的要素&lt;/h3&gt;
+&lt;h2 id=&quot;the-two-most-important-ingredients--兩個最關鍵的要素&quot;&gt;The Two Most Important Ingredients / 兩個最關鍵的要素&lt;/h2&gt;
 
 &lt;p&gt;My take is that there are two most important ingredients to becoming a malware researcher:&lt;/p&gt;
 
@@ -32,7 +33,7 @@
   &lt;p&gt;研究惡意軟體需要非常多的專業知識與技巧，且非常具有挑戰性。這種挑戰可以自然的淘汰掉那些並不是真心投入或是沒熱誠的人。而那種無止盡的熱情與好奇心將驅使一個分析員將所有東西都拆過一輪。所以第一步是建立分析環境，搞點惡意軟體並試著玩弄一番。你真的能樂在其中?你真的能這樣搞他個三天三夜?我的答案是，當我開始分析惡意軟體通常都是五到八個小時起跳，並且我還停不下來。在追求惡意軟體分析專家的道路上，這是至關重要的因素。&lt;/p&gt;
 &lt;/blockquote&gt;
 
-&lt;h3 id=&quot;how-to-learn--怎麼學&quot;&gt;How to learn / 怎麼學&lt;/h3&gt;
+&lt;h2 id=&quot;how-to-learn--怎麼學&quot;&gt;How to learn / 怎麼學&lt;/h2&gt;
 
 &lt;p&gt;So let’s say you share the passion and you are now wanting to know exactly how I would recommend taking further steps. Here are the steps I recommend:&lt;/p&gt;
 
@@ -74,13 +75,13 @@
   &lt;p&gt;簡而言之，這雖然還離你很遠，但這並不會花到你一毛錢，而是需要很多時間，我沒寫出要追那些部落格或書，因為我已經在&lt;a href=&quot;https://malwareanalysisforums.com/topic/7/malware-analysis-resources-noobs-read-first/2&quot;&gt;這邊&lt;/a&gt;羅列過這些資源了，可以去看看。&lt;/p&gt;
 &lt;/blockquote&gt;
 
-&lt;h3 id=&quot;becoming-a-professional--成為一個專家&quot;&gt;Becoming a professional / 成為一個專家&lt;/h3&gt;
+&lt;h2 id=&quot;becoming-a-professional--成為一個專家&quot;&gt;Becoming a professional / 成為一個專家&lt;/h2&gt;
 
 &lt;p&gt;In order to become a professional, it’s very helpful to show off some of your work. This both shows your quality of work and where you’re at, and it shows off your passion and love of malware analysis. One of the cool things about this field is that you can analyze as much malware as you wnat in your free time and create write-ups and videos, then post them up on a blog or YouTube. This allows you to effectively “work” even when you are not a professional yet and you can show off this work to using a programming language and put it up on GitHub. This will not only benefit the community and allow you to improve your coding skills, but it will gain you exposure and is more work you could show to a prospective employer. Certifications sometimes have their place, but I am not the only one who feels that demonstrated, tangible work like this is more valuable and the nice thing is it doesn’t cost $1,000-$5,000 either!&lt;/p&gt;
 
 &lt;p&gt;為了成為一個專家，顯擺一下你的成果是非常必要的，一方面顯示一下你的程度，一方面展現你對惡意軟體分析的愛與熱情。你還能在閒暇之餘隨心所欲的分析惡意軟體，並上傳至 YouTube 或是部落格上分享你的分析結果。你也可以把相關的程式碼上傳至 GitHub，儘管你還不是一個專家，這將對你的工作有相當的效益。這不只是對社群有助益，同時也能改善你寫程式的技巧與增進對潛在雇主的曝光度。不能說證照沒用，但我不是唯一一個認為實際操作經驗等是更為有價值的，至少他不會花你個一千五千的。&lt;/p&gt;
 
-&lt;h3 id=&quot;remaining-a-professional-and-being-skilled--持續當一個熟練的專家&quot;&gt;Remaining a professional and being skilled / 持續當一個熟練的專家&lt;/h3&gt;
+&lt;h2 id=&quot;remaining-a-professional-and-being-skilled--持續當一個熟練的專家&quot;&gt;Remaining a professional and being skilled / 持續當一個熟練的專家&lt;/h2&gt;
 
 &lt;p&gt;Malware Reasearch is a job that requires constantly learning and honing of skills. Not only is there a huge breadth of knowlege which applies, but there are often new trends, threats, and attacks which are introduced each year. Likewise though, it’s important to understand the foundational basics and refresh yourself on them so that you don’t get caught worrying too much about the trendy threats and let a 10-year-old attack technique slip right by you. For these reasons, plan on always reading books, blogs, and papers indefinitely, and honing your coding and reversing skills. The learning doesn’t ever stop.&lt;/p&gt;
 
@@ -107,7 +108,7 @@
 &lt;blockquote&gt;
   &lt;p&gt;其他你可以涉足的領域像是對惡意軟體的解混淆、脫殼、反虛擬化、使用機器學習演算法來分析惡意軟體、建造一個像 Cuckoo 或 Joe Security 的惡意軟體分析沙盒等等 …
 好玩的不得了，希望這些對你們有幫助。&lt;/p&gt;
-&lt;/blockquote&gt;</content><author><name>jhe</name></author><category term="Malware" /><summary type="html">How to Become (and Remain) a Malware Researcher I am writing this post as requested by Peerlyst. In this post, I will present my unique take on both becoming and remaining a Malware Researcher.</summary></entry><entry><title type="html">LM, NTLM, Net-NTLMv2 我的天呀！</title><link href="https://security-onigiri.github.io//2018/07/07/lm-ntlm-net-ntlmv2.html" rel="alternate" type="text/html" title="LM, NTLM, Net-NTLMv2 我的天呀！" /><published>2018-07-07T00:00:00+08:00</published><updated>2018-07-07T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/07/07/lm-ntlm-net-ntlmv2</id><content type="html" xml:base="https://security-onigiri.github.io//2018/07/07/lm-ntlm-net-ntlmv2.html">&lt;h1 id=&quot;lm-ntlm-net-ntlmv2-oh-my&quot;&gt;LM, NTLM, Net-NTLMv2, oh my!&lt;/h1&gt;
+&lt;/blockquote&gt;</content><author><name>jhe</name></author><category term="Malware" /><summary type="html">How to Become (and Remain) a Malware Researcher</summary></entry><entry><title type="html">LM, NTLM, Net-NTLMv2 我的天呀！</title><link href="https://security-onigiri.github.io//2018/07/07/lm-ntlm-net-ntlmv2.html" rel="alternate" type="text/html" title="LM, NTLM, Net-NTLMv2 我的天呀！" /><published>2018-07-07T00:00:00+08:00</published><updated>2018-07-07T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/07/07/lm-ntlm-net-ntlmv2</id><content type="html" xml:base="https://security-onigiri.github.io//2018/07/07/lm-ntlm-net-ntlmv2.html">&lt;h1 id=&quot;lm-ntlm-net-ntlmv2-oh-my&quot;&gt;LM, NTLM, Net-NTLMv2, oh my!&lt;/h1&gt;
 
 &lt;p&gt;When attacking AD, passwords are stored and sent in different ways, dependeing on both where you find it and the age of the domain. Most of these hashes are confusingly named, and both the hash name and the authentication protocol is named almost the same thing. It doesn’t help that every tool, post and guide that mentions credentials on Windows manage to add to the confusion. This is my attempt at clearing things up.&lt;/p&gt;
 &lt;blockquote&gt;
